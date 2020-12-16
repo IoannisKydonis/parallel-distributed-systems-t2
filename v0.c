@@ -7,6 +7,12 @@ struct knnresult kNN(double *x, double *y, int n, int m, int d, int k);
 
 void hadamardProduct(double *x, double *y, double *res, int length);
 
+double  kNearest(double* D, int left, int right, int k);
+
+int partition(double* D, int left, int right, int pivotIndex); //partitioning function for kNearest
+
+void swap(double* D , int left, int right); //swap function for kNearest
+
 // Definition of the kNN result struct
 struct knnresult {
     int *nidx;    //!< Indices (0-based) of nearest neighbors [m-by-k]
@@ -37,7 +43,7 @@ int main(int argc, char *argv[]) {
             1.3, -23.9
     };
 
-    kNN(x, y, 10, 5, 2, 0);
+    kNN(x, y, 10, 5, 2, 0);   //k is the last value. If changed here , delete line 86
 }
 
 struct knnresult kNN(double *x, double *y, int n, int m, int d, int k) {
@@ -76,7 +82,29 @@ struct knnresult kNN(double *x, double *y, int n, int m, int d, int k) {
     }
     printf("\n");
 
-    // TODO: kydonis - compute result
+//// set value  of k ////
+    k=2;
+    double** nearest=(double**)malloc(n*sizeof(double*));
+
+    for (int i = 0; i < n; i++)
+    nearest[i]=(double*)malloc(k*sizeof(double));
+
+    for (int i = 0; i < n; i++) {
+           for (int j = 0; j < k; j++) {
+               nearest[i][j] = kNearest(dist,i*m,(i+1)*m-1,j);
+
+            }
+        
+    }
+    
+
+    for (int i = 0; i < n; i++) {
+            for (int j = 0; j < k; j++) {
+            printf("%10.4f ", nearest[i][j]);
+            }
+            printf("\n");
+    }
+    printf("\n");
 
     free(xx);
     free(yy);
@@ -84,6 +112,7 @@ struct knnresult kNN(double *x, double *y, int n, int m, int d, int k) {
     free(xxSum);
     free(yySum);
     free(dist);
+    free(nearest);
 
     return *result;
 }
@@ -92,3 +121,49 @@ void hadamardProduct(double *x, double *y, double *res, int length) {
     for (int i = 0; i < length; i++)
         res[i] = x[i] * y[i];
 }
+
+double  kNearest(double* D, int left, int right, int k){ // find the k-nearest neighbor for each element in D. The index of the nearest neighbor is D[index] which is returned.
+                                                        // *this function returns only 1 neighbor*
+if (left==right)
+    return D[left];
+
+int pivotIndex=(right+left)/2 ;                                //set random value. Normally it should be ""left + floor(rand() % (right − left + 1))"" but this results in floating point error
+pivotIndex=partition(D , left , right , pivotIndex );
+
+if(k+left == pivotIndex)                               //normally it would be k == pivotIndex but we have to account for the cases that left>0
+    return D[k+left];                                  
+
+else if ( k+left < pivotIndex )    
+    return kNearest(D , left , pivotIndex - 1 , k);
+
+else
+    return kNearest(D , pivotIndex + 1 , right , k);
+}
+
+
+int partition(double* D, int left, int right, int pivotIndex){  //partitioning algorithm
+int pivotValue=D[pivotIndex];
+swap(D,pivotIndex, right);
+
+int storeIndex=left;
+for(int i=left; i<right; i++){
+  if(D[i]<pivotValue){
+     swap(D,storeIndex,i);
+     storeIndex++;
+  }
+}
+
+swap(D,right,storeIndex);
+return storeIndex;
+}
+
+
+void swap(double* D , int left, int right){
+   double temp=D[left];
+   D[left]=D[right];
+   D[right]=temp;
+
+}
+
+
+
