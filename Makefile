@@ -6,7 +6,7 @@ default: all
 
 all: v0
 
-v0: v0.c
+v0: v0.c utilities.c
 	$(CC) $(CFLAGS) $(CBLAS) -o $@ $^
 
 clean:
