@@ -15,6 +15,8 @@ struct knnresult
     int k;         //!< Number of nearest neighbors            [scalar]
 };
 
+int MAX_Y_SIZE = 2;
+
 int main(int argc, char *argv[])
 {
     struct knnresult result;
@@ -66,66 +68,74 @@ int main(int argc, char *argv[])
 struct knnresult kNN(double *x, double *y, int n, int m, int d, int k)
 {
     struct knnresult *result = malloc(sizeof(struct knnresult));
-
-    double *xx = malloc(n * d * sizeof(double));
-    hadamardProduct(x, x, xx, n * d);
-
-    double *yy = malloc(m * d * sizeof(double));
-    hadamardProduct(y, y, yy, m * d);
-
-    double *xxSum = malloc(n * sizeof(double));
-    for (int i = 0; i < n; i++)
-    {
-        xxSum[i] = cblas_dasum(d, xx + i * d, 1);
-    }
-
-    double *yySum = malloc(m * sizeof(double));
-    for (int i = 0; i < m; i++)
-    {
-        yySum[i] = cblas_dasum(d, yy + i * d, 1);
-    }
-
-    double *xy = malloc(n * m * sizeof(double));
-    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, n, m, d, -2, x, d, y, d, 0, xy, m);
-
-    double *dist = malloc(n * m * sizeof(double));
-    for (int i = 0; i < n; i++)
-    {
-        for (int j = 0; j < m; j++)
-        {
-            dist[i * m + j] = sqrt(xxSum[i] + xy[i * m + j] + yySum[j]);
-        }
-    }
-
     int * indexesRowMajor=(int*)malloc(n*k*sizeof(int));
     double * distRowMajor=(double*)malloc(n*k*sizeof(double));
 
-    int *indexValues = (int *)malloc(n * m * sizeof(int));
-    for (int i = 0; i < n * m; i++)
-        indexValues[i] = i;
-
-    for (int i = 0; i < n; i++)
-    {
-        for (int j = 0; j < k; j++)
-        {
-            int idx;
-            distRowMajor[i*k +j] = kNearest(dist, indexValues, i * m, (i + 1) * m - 1, j + 1, &idx);
-            indexesRowMajor[i*k +j] = idx - i * m;
+    for (int ii = 0; ii < m / MAX_Y_SIZE; ii++) {
+        int partitionSize = MAX_Y_SIZE;
+        if (ii == m / MAX_Y_SIZE - 1) {
+            partitionSize = m % MAX_Y_SIZE;
         }
+
+        double *xx = malloc(n * d * sizeof(double));
+        hadamardProduct(x, x, xx, n * d);
+
+        double *xxSum = malloc(n * sizeof(double));
+        for (int i = 0; i < n; i++)
+        {
+            xxSum[i] = cblas_dasum(d, xx + i * d, 1);
+        }
+
+        double *yy = malloc(partitionSize * d * sizeof(double));
+        hadamardProduct(y, y, yy, partitionSize * d);
+
+        double *yySum = malloc(partitionSize * sizeof(double));
+        for (int i = 0; i < partitionSize; i++)
+        {
+            yySum[i] = cblas_dasum(d, yy + i * d, 1);
+        }
+
+        double *xy = malloc(n * partitionSize * sizeof(double));
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, n, partitionSize, d, -2, x, d, y, d, 0, xy, partitionSize);
+
+        double *dist = malloc(n * partitionSize * sizeof(double));
+        for (int i = 0; i < n; i++)
+        {
+            for (int j = 0; j < partitionSize; j++)
+            {
+                dist[i * partitionSize + j] = sqrt(xxSum[i] + xy[i * partitionSize + j] + yySum[j]);
+            }
+        }
+
+        int *indexValues = (int *)malloc(n * partitionSize * sizeof(int));
+        for (int i = 0; i < n * partitionSize; i++)
+            indexValues[i] = i;
+
+        for (int i = 0; i < n; i++)
+        {
+            for (int j = 0; j < k; j++)
+            {
+                int idx;
+                distRowMajor[ii * MAX_Y_SIZE + i*k +j] = kNearest(dist, indexValues, i * partitionSize, (i + 1) * partitionSize - 1, j + 1, &idx);
+                indexesRowMajor[ii * MAX_Y_SIZE + i*k +j] = idx - i * partitionSize;
+            }
+        }
+
+        free(xx);
+        free(yy);
+        free(xy);
+        free(xxSum);
+        free(yySum);
+        free(dist);
+        free(indexValues);
     }
-    
+
     result->ndist=distRowMajor;
     result->nidx=indexesRowMajor;
     result->m=m;
     result->k=k;
 
-    free(xx);
-    free(yy);
-    free(xy);
-    free(xxSum);
-    free(yySum);
-    free(dist);
-    free(indexValues);
+
 
     return *result;
 }
