@@ -97,14 +97,8 @@ struct knnresult kNN(double *x, double *y, int n, int m, int d, int k)
         }
     }
 
-    int **indexes = (int **)malloc(n * sizeof(int *));
-    double **nearest = (double **)malloc(n * sizeof(double *));
-
-    for (int i = 0; i < n; i++)
-    {
-        nearest[i] = (double *)malloc(k * sizeof(double));
-        indexes[i] = (int *)malloc(k * sizeof(int));
-    }
+    int * indexesRowMajor=(int*)malloc(n*k*sizeof(int));
+    double * distRowMajor=(double*)malloc(n*k*sizeof(double));
 
     int *indexValues = (int *)malloc(n * m * sizeof(int));
     for (int i = 0; i < n * m; i++)
@@ -115,20 +109,8 @@ struct knnresult kNN(double *x, double *y, int n, int m, int d, int k)
         for (int j = 0; j < k; j++)
         {
             int idx;
-            nearest[i][j] = kNearest(dist, indexValues, i * m, (i + 1) * m - 1, j + 1, &idx);
-            indexes[i][j] = idx - i * m;
-        }
-    }
-
-    int * indexesRowMajor=(int*)malloc(n*k*sizeof(int));
-    double * distRowMajor=(double*)malloc(n*k*sizeof(double));
-
-    for (int i = 0; i < n; i++)
-    {
-        for (int j = 0; j < k; j++)
-        {
-            indexesRowMajor[i*k +j]=indexes[i][j];
-            distRowMajor[i*k +j]=nearest[i][j];
+            distRowMajor[i*k +j] = kNearest(dist, indexValues, i * m, (i + 1) * m - 1, j + 1, &idx);
+            indexesRowMajor[i*k +j] = idx - i * m;
         }
     }
     
@@ -137,20 +119,12 @@ struct knnresult kNN(double *x, double *y, int n, int m, int d, int k)
     result->m=m;
     result->k=k;
 
-
-    for (int i = 0; i < n; i++)
-    {
-        free(indexes[i]);
-        free(nearest[i]);
-    }
     free(xx);
     free(yy);
     free(xy);
     free(xxSum);
     free(yySum);
     free(dist);
-    free(nearest);
-    free(indexes);
     free(indexValues);
 
     return *result;
