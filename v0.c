@@ -15,7 +15,7 @@ struct knnresult
     int k;         //!< Number of nearest neighbors            [scalar]
 };
 
-int MAX_Y_SIZE = 2;
+int MAX_Y_SIZE = 4;
 
 int main(int argc, char *argv[])
 {
@@ -77,6 +77,13 @@ struct knnresult kNN(double *x, double *y, int n, int m, int d, int k)
             partitionSize = m % MAX_Y_SIZE;
         }
 
+        double *currentY = malloc(partitionSize * d * sizeof(double));
+        for (int i = 0; i < partitionSize; i++) {
+            for (int j = 0; j < d; j++) {
+                currentY[i * d + j] = y[ii * MAX_Y_SIZE + i * d + j];
+            }
+        }
+
         double *xx = malloc(n * d * sizeof(double));
         hadamardProduct(x, x, xx, n * d);
 
@@ -87,7 +94,7 @@ struct knnresult kNN(double *x, double *y, int n, int m, int d, int k)
         }
 
         double *yy = malloc(partitionSize * d * sizeof(double));
-        hadamardProduct(y, y, yy, partitionSize * d);
+        hadamardProduct(currentY, currentY, yy, partitionSize * d);
 
         double *yySum = malloc(partitionSize * sizeof(double));
         for (int i = 0; i < partitionSize; i++)
@@ -96,7 +103,7 @@ struct knnresult kNN(double *x, double *y, int n, int m, int d, int k)
         }
 
         double *xy = malloc(n * partitionSize * sizeof(double));
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, n, partitionSize, d, -2, x, d, y, d, 0, xy, partitionSize);
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, n, partitionSize, d, -2, x, d, currentY, d, 0, xy, partitionSize);
 
         double *dist = malloc(n * partitionSize * sizeof(double));
         for (int i = 0; i < n; i++)
@@ -121,6 +128,7 @@ struct knnresult kNN(double *x, double *y, int n, int m, int d, int k)
             }
         }
 
+        free(currentY);
         free(xx);
         free(yy);
         free(xy);
