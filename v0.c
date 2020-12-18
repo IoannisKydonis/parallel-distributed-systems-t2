@@ -3,7 +3,7 @@
 #include <math.h>  // sqrt
 #include <cblas.h> // cblas_dgemm
 
-struct knnresult * kNN(double *x, double *y, int n, int m, int d, int k);
+struct knnresult kNN(double *x, double *y, int n, int m, int d, int k);
 
 void hadamardProduct(double *x, double *y, double *res, int length);
 
@@ -26,7 +26,7 @@ struct knnresult
 
 int main(int argc, char *argv[])
 {
-    struct knnresult *result = malloc(sizeof(struct knnresult));
+    struct knnresult result;
     double x[20] = {
         1.0, 2.0,
         0.5, 1.2,
@@ -46,10 +46,33 @@ int main(int argc, char *argv[])
         17.22, 78.01,
         1.3, -23.9};
 
-    result=kNN(x, y, 10, 5, 2, 3); 
+    result=kNN(x, y, 10, 5, 2, 5);
+    printf("m=%d k=%d\n", result.m, result.k);
+
+    printf("Nearest: ");
+    int n = 10;
+    for(int i=0; i<n * result.k; i++){
+        if (i % result.k == 0) {
+            printf("\n");
+        }
+        printf("%f ", result.ndist[i]);
+    }
+    printf("\n");
+
+    printf("Indexes: ");
+    for(int i=0; i<n * result.k; i++){
+        if (i % result.k == 0) {
+            printf("\n");
+        }
+        printf("%d ", result.nidx[i]);
+    }
+    printf("\n");
+
+    free(result.nidx);
+    free(result.ndist);
 }
 
-struct knnresult * kNN(double *x, double *y, int n, int m, int d, int k)
+struct knnresult kNN(double *x, double *y, int n, int m, int d, int k)
 {
     struct knnresult *result = malloc(sizeof(struct knnresult));
 
@@ -82,15 +105,6 @@ struct knnresult * kNN(double *x, double *y, int n, int m, int d, int k)
             dist[i * m + j] = sqrt(xxSum[i] + xy[i * m + j] + yySum[j]);
         }
     }
-    for (int i = 0; i < n; i++)
-    {
-        for (int j = 0; j < m; j++)
-        {
-            printf("%10.4lf ", dist[i * m + j]);
-        }
-        printf("\n");
-    }
-    printf("\n");
 
     int **indexes = (int **)malloc(n * sizeof(int *));
     double **nearest = (double **)malloc(n * sizeof(double *));
@@ -114,16 +128,6 @@ struct knnresult * kNN(double *x, double *y, int n, int m, int d, int k)
             indexes[i][j] = idx - i * m;
         }
     }
-
-    for (int i = 0; i < n; i++)
-    {
-        for (int j = 0; j < k; j++)
-        {
-            printf("%10.4f(%d) ", nearest[i][j], indexes[i][j]);
-        }
-        printf("\n");
-    }
-    printf("\n");
 
     int * indexesRowMajor=(int*)malloc(n*k*sizeof(int));
     double * distRowMajor=(double*)malloc(n*k*sizeof(double));
@@ -158,7 +162,7 @@ struct knnresult * kNN(double *x, double *y, int n, int m, int d, int k)
     free(indexes);
     free(indexValues);
 
-    return result;
+    return *result;
 }
 
 void hadamardProduct(double *x, double *y, double *res, int length)
