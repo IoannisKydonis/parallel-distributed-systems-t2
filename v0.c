@@ -15,7 +15,7 @@ struct knnresult
     int k;         //!< Number of nearest neighbors            [scalar]
 };
 
-int MAX_Y_SIZE = 4;
+int MAX_Y_SIZE = 5;
 
 int main(int argc, char *argv[])
 {
@@ -68,33 +68,34 @@ int main(int argc, char *argv[])
 struct knnresult kNN(double *x, double *y, int n, int m, int d, int k)
 {
     struct knnresult *result = malloc(sizeof(struct knnresult));
-    int * indexesRowMajor=(int*)malloc(n*k*sizeof(int));
-    double * distRowMajor=(double*)malloc(n*k*sizeof(double));
+    double *dist = malloc(n * m * sizeof(double));
 
-    for (int ii = 0; ii < m / MAX_Y_SIZE; ii++) {
-        int partitionSize = MAX_Y_SIZE;
-        if (ii == m / MAX_Y_SIZE - 1) {
-            partitionSize = m % MAX_Y_SIZE;
-        }
+    double *xx = malloc(n * d * sizeof(double));
+    hadamardProduct(x, x, xx, n * d);
 
-        double *currentY = malloc(partitionSize * d * sizeof(double));
-        for (int i = 0; i < partitionSize; i++) {
-            for (int j = 0; j < d; j++) {
-                currentY[i * d + j] = y[ii * MAX_Y_SIZE + i * d + j];
-            }
-        }
-
-        double *xx = malloc(n * d * sizeof(double));
-        hadamardProduct(x, x, xx, n * d);
-
-        double *xxSum = malloc(n * sizeof(double));
-        for (int i = 0; i < n; i++)
-        {
+    double *xxSum = malloc(n * sizeof(double));
+    for (int i = 0; i < n; i++){
             xxSum[i] = cblas_dasum(d, xx + i * d, 1);
+    }
+
+
+    for (int ii = 0; ii <= m / MAX_Y_SIZE; ii++) {
+        int partitionSize = MAX_Y_SIZE;
+        
+        if ((ii+1) * MAX_Y_SIZE > m ) {
+            partitionSize = m % MAX_Y_SIZE ;
+        }
+
+        double * currentY = (double*)malloc(partitionSize * d * sizeof(double));
+    
+        for (int i = 0; i < partitionSize * d; i++) {
+                currentY[i] = y[ii * MAX_Y_SIZE * d + i ];
+            
         }
 
         double *yy = malloc(partitionSize * d * sizeof(double));
         hadamardProduct(currentY, currentY, yy, partitionSize * d);
+
 
         double *yySum = malloc(partitionSize * sizeof(double));
         for (int i = 0; i < partitionSize; i++)
@@ -105,45 +106,46 @@ struct knnresult kNN(double *x, double *y, int n, int m, int d, int k)
         double *xy = malloc(n * partitionSize * sizeof(double));
         cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, n, partitionSize, d, -2, x, d, currentY, d, 0, xy, partitionSize);
 
-        double *dist = malloc(n * partitionSize * sizeof(double));
+
         for (int i = 0; i < n; i++)
         {
             for (int j = 0; j < partitionSize; j++)
             {
-                dist[i * partitionSize + j] = sqrt(xxSum[i] + xy[i * partitionSize + j] + yySum[j]);
+                dist[i * m + ii*MAX_Y_SIZE+ j] = sqrt(xxSum[i] + xy[i * partitionSize + j] + yySum[j]);
             }
         }
-
-        int *indexValues = (int *)malloc(n * partitionSize * sizeof(int));
-        for (int i = 0; i < n * partitionSize; i++)
-            indexValues[i] = i;
-
-        for (int i = 0; i < n; i++)
-        {
-            for (int j = 0; j < k; j++)
-            {
-                int idx;
-                distRowMajor[ii * MAX_Y_SIZE + i*k +j] = kNearest(dist, indexValues, i * partitionSize, (i + 1) * partitionSize - 1, j + 1, &idx);
-                indexesRowMajor[ii * MAX_Y_SIZE + i*k +j] = idx - i * partitionSize;
-            }
-        }
-
+ 
         free(currentY);
-        free(xx);
         free(yy);
         free(xy);
-        free(xxSum);
         free(yySum);
-        free(dist);
-        free(indexValues);
+
     }
+
+    int * indexesRowMajor=(int*)malloc(n*k*sizeof(int));
+    double * distRowMajor=(double*)malloc(n*k*sizeof(double));
+    int *indexValues = (int *)malloc(n * m * sizeof(int));
+    for (int i = 0; i < n * m; i++)
+        indexValues[i] = i;
+
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < k; j++)
+        {
+            int idx;
+            distRowMajor[i*k +j] = kNearest(dist, indexValues, i * m, (i + 1) * m - 1, j + 1, &idx);
+            indexesRowMajor[i*k +j] = idx - i * m;
+        }
+    }
+
+
 
     result->ndist=distRowMajor;
     result->nidx=indexesRowMajor;
     result->m=m;
     result->k=k;
-
-
+    free(xx);
+    free(xxSum);
 
     return *result;
 }
