@@ -15,7 +15,7 @@ struct knnresult
     int k;         //!< Number of nearest neighbors            [scalar]
 };
 
-int MAX_Y_SIZE = 1;
+int MAX_Y_SIZE = 3;
 
 int main(int argc, char *argv[])
 {
@@ -79,7 +79,7 @@ struct knnresult kNN(double *x, double *y, int n, int m, int d, int k)
         xxSum[i] = cblas_dasum(d, xx + i * d, 1);
     }
 
-    for (int ii = 0; ii < m / MAX_Y_SIZE; ii++) {
+    for (int ii = 0; ii < ceil(m / (double)MAX_Y_SIZE); ii++) {
         int partitionSize = MAX_Y_SIZE;
         if (ii * MAX_Y_SIZE + partitionSize > m) {
             partitionSize = m % MAX_Y_SIZE;
@@ -103,11 +103,11 @@ struct knnresult kNN(double *x, double *y, int n, int m, int d, int k)
         cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, n, partitionSize, d, -2, x, d, currentY, d, 0, xy, partitionSize);
 
         double *dist = malloc(n * partitionSize * sizeof(double));
-        for (int i = 0; i < n; i++)
+        for (int j = 0; j < partitionSize; j++)
         {
-            for (int j = 0; j < partitionSize; j++)
+            for (int i = 0; i < n; i++)
             {
-                dist[i * partitionSize + j] = sqrt(xxSum[i] + xy[i * partitionSize + j] + yySum[j]);
+                dist[j * n + i] = sqrt(xxSum[i] + xy[i * partitionSize + j] + yySum[j]);
             }
         }
 
