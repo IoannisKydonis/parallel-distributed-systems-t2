@@ -28,7 +28,7 @@ double kNearest(double *dist, int *indexValues, int left, int right, int k, int 
 
 int partition(double *dist, int *indexValues, int left, int right)
 {
-    int x = dist[right];
+    double x = dist[right];
     int i = left;
     for (int j = left; j <= right - 1; j++)
     {
