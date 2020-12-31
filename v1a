@@ -16,7 +16,7 @@ struct knnresult
 
 void printResult(struct knnresult result, int id);
 
-struct knnresult smallKNN(double *x, double *y, int n, int m, int d, int k);
+struct knnresult smallKNN(double *x, double *y, int n, int m, int d, int k, int indexOffset);
 
 struct knnresult updateKNN(struct knnresult oldResult, struct knnresult newResult );
 
@@ -25,6 +25,9 @@ void dividePoints(int n, int tasks, int * array);
 int findDestination(int id, int NumTasks);
 
 int findReceipient(int id, int NumTasks);
+
+int findIndexOffset(int id, int iteration, int NumTasks, int * totalPoints);
+
 
 int main(int argc, char *argv[]) {
     
@@ -71,13 +74,14 @@ int main(int argc, char *argv[]) {
    if(totalPoints[i]<min)
    min=totalPoints[i];
    }
-   X=x+offset*d;
+   offset*=d;
+   X=x+offset;
 
 
    if(k>min)
    k=min-1;
    struct knnresult result;
-   result=smallKNN(X,X,points,points,d,k);
+   result=smallKNN(X,X,points,points,d,k,offset);
    if(SelfTID==0)
    printResult(result, SelfTID);
    //up to this point each process has calculated knearest for block that belongs to it
@@ -97,7 +101,8 @@ int main(int argc, char *argv[]) {
    MPI_Recv(Y,receivedElements,MPI_DOUBLE,receipient,55,MPI_COMM_WORLD,&mpistat); //receive from the last process
    
    struct knnresult newResult;
-   newResult=smallKNN(X,Y,points,points,d,k);
+   int off=findIndexOffset(SelfTID, 1,NumTasks,totalPoints);
+   newResult=smallKNN(X,Y,points,points,d,k,off);
    //newResult=smallKNN(X,Y,points,totalPoints[receipient],d,k); don't know which is correct
    
    if(SelfTID==0){
@@ -105,7 +110,7 @@ int main(int argc, char *argv[]) {
    printf("\n\nMerged result: \n\n");
    struct knnresult mergedResult;
    mergedResult=updateKNN(newResult,result);
-   //printResult(mergedResult, SelfTID);
+   printResult(mergedResult, SelfTID);
    }
 
 
@@ -145,7 +150,7 @@ void printResult(struct knnresult result, int id){
 
 }
 
-struct knnresult smallKNN(double *x, double *y, int n, int m, int d, int k)
+struct knnresult smallKNN(double *x, double *y, int n, int m, int d, int k, int indexOffset)
 { 
     struct knnresult *result = malloc(sizeof(struct knnresult));
 
@@ -181,8 +186,8 @@ struct knnresult smallKNN(double *x, double *y, int n, int m, int d, int k)
 
 
     int *indexValues = (int *)malloc(n * m * sizeof(int));
-    for (int i = 0; i < n * m; i++)
-        indexValues[i] = i;
+    for (int i = 0; i < n * m; i++)   //this must change for Y block
+        indexValues[i] = i+indexOffset;
 
     int * indexesRowMajor=(int*)malloc(n*k*sizeof(int));
     double * distRowMajor=(double*)malloc(n*k*sizeof(double));    
@@ -259,18 +264,32 @@ struct knnresult updateKNN(struct knnresult oldResult, struct knnresult newResul
    kmin=oldResult.k;
    }
 
-
-
    double * newNearest = malloc(m * k* sizeof(double));
    int * newIndexes = malloc(m * k * sizeof(int));
 
    for(int i=0; i< m ; i++){
+       int it1,it2; //iterator for old and new result.ndist
+       it1=it2=i*k;
        for(int j =0; j<k ; j++){
-           //merge newResult.dist, oldResult.dist
+           if(newResult.ndist[it1]<=oldResult.ndist[it2]){
+               //printf("%f* is smaller than %f it1 %d it2 %d   -> %d\n",newResult.ndist[it1],oldResult.ndist[it2], it1, it2,i*k+j);
+               newNearest[i*k+j]=newResult.ndist[it1];
+               newIndexes[i*k+j]=newResult.nidx[it1];
+               it1++;
+           }
+           else {
+               //printf("%f is bigger than %f* it1 %d it2 %d   -> %d\n",newResult.ndist[it1],oldResult.ndist[it2], it1, it2,i*k+j);
+               newNearest[i*k+j]=oldResult.ndist[it2];
+               newIndexes[i*k+j]=oldResult.nidx[it2];
+               it2++;
+           }
+           
+
+
 
      }
     }
-   
+    /*
     printf("New nearest\n");
     for(int i=0; i<m*k ; i++){
         if(i%k==0)
@@ -285,11 +304,21 @@ struct knnresult updateKNN(struct knnresult oldResult, struct knnresult newResul
     printf("%d ",newIndexes[i]);
     }
     printf("\n");
-
+    */
     result->ndist=newNearest; 
     result->nidx=newIndexes;
     result->m=oldResult.m;
     result->k=oldResult.k;
     return * result;
 
+}
+int findIndexOffset(int id, int iteration, int NumTasks, int * totalPoints){ //total points is the number of the points before 
+int Y=id-iteration;
+if(Y<0)
+Y+=NumTasks;
+int result=0;
+for(int i=0;i<Y;i++)
+result+=totalPoints[i];
+
+return result;
 }
