@@ -262,6 +262,8 @@ struct knnresult updateKNN(struct knnresult oldResult, struct knnresult newResul
                //printf("%f* is smaller than %f it1 %d it2 %d   -> %d\n",newResult.ndist[it1],oldResult.ndist[it2], it1, it2,i*k+j);
                newNearest[i*k+j]=newResult.ndist[it1];
                newIndexes[i*k+j]=newResult.nidx[it1];
+               if (newResult.nidx[it1] == oldResult.nidx[it2])
+                   it2++;
                it1++;
            }
 
@@ -270,6 +272,8 @@ struct knnresult updateKNN(struct knnresult oldResult, struct knnresult newResul
                //printf("%f is bigger than %f* it1 %d it2 %d   -> %d\n",newResult.ndist[it1],oldResult.ndist[it2], it1, it2,i*k+j);
                newNearest[i*k+j]=oldResult.ndist[it2];
                newIndexes[i*k+j]=oldResult.nidx[it2];
+               if (newResult.nidx[it1] == oldResult.nidx[it2])
+                   it1++;
                it2++;
            }
            
