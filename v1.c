@@ -66,7 +66,6 @@ int main(int argc, char *argv[]) {
    int * totalPoints=(int *)malloc(n*sizeof(int));
    dividePoints(n , NumTasks, totalPoints);
    int points=totalPoints[SelfTID];
-
    int offset=0;
 
    double * X=(double *)malloc(points*d*sizeof(double));
@@ -78,14 +77,8 @@ int main(int argc, char *argv[]) {
    }
    X=x+offset*d;
 
-   //printf("I am %d , I receive from %d and send to %d . \n", SelfTID,findSender(SelfTID, NumTasks),findDestination(SelfTID, NumTasks) );
    int sentElements=totalPoints[SelfTID]*d;
    MPI_Isend(X,sentElements,MPI_DOUBLE,findDestination(SelfTID, NumTasks),55,MPI_COMM_WORLD, &mpireq);  //send self block
-
-   printf("Process %d sent to process %d array X: ",SelfTID,findDestination(SelfTID, NumTasks));
-   for(int l=0; l<sentElements; l++)
-   printf("%f ",X[l]);
-   printf("\n");
 
    int sender=findSender(SelfTID, NumTasks);
    int receivedArrayIndex;
@@ -98,40 +91,23 @@ int main(int argc, char *argv[]) {
    k=min-1;
    struct knnresult result,previousResult;
    result=smallKNN(X,X,points,points,d,k,offset);
-   //previousResult=result;
+   previousResult=result;
 
    for (int i=1; i<NumTasks; i++){  //loop
 
    receivedArrayIndex=findBlockArrayIndex(SelfTID, i, NumTasks);
    receivedElements=totalPoints[receivedArrayIndex] * d;
-
    double * Y= malloc(receivedElements * sizeof(double));
-
    MPI_Recv(Y,receivedElements,MPI_DOUBLE,sender,55,MPI_COMM_WORLD,&mpistat); //receive from previous process
-
-   printf("Process %d received from process %d array Y: ",SelfTID,sender);
-   for(int l=0; l<receivedElements; l++)
-   printf("%f ",Y[l]);
-   printf("\n");
-
    MPI_Isend(Y,receivedElements,MPI_DOUBLE,findDestination(SelfTID, NumTasks),55,MPI_COMM_WORLD, &mpireq); //send the received array to next process
-   printf("Process %d sends to process %d array Y: " ,SelfTID, findDestination(SelfTID, NumTasks));
-   for(int l=0; l<receivedElements; l++)
-   printf("%f ",Y[l]);
-   printf("\n");
-   
-   
-   off=findIndexOffset(SelfTID,i,NumTasks,totalPoints);
-   //printf("offset is %d\n",off);
-   newResult=smallKNN(X,Y,points,points,d,k,off);
-   //newResult=smallKNN(X,Y,points,totalPoints[sender],d,k); don't know which is correct
-   mergedResult=updateKNN(newResult,result);
-   //previousResult=mergedResult;
-   //free(Y);
-   
-   }
-   printResult(mergedResult, SelfTID);
 
+   off=findIndexOffset(SelfTID,i,NumTasks,totalPoints);
+   newResult=smallKNN(X,Y,points,points,d,k,off);
+   mergedResult=updateKNN(newResult,previousResult);
+   previousResult=mergedResult;
+   }
+
+   printResult(mergedResult, SelfTID);
 
    MPI_Finalize();
    return(0);
@@ -288,6 +264,8 @@ struct knnresult updateKNN(struct knnresult oldResult, struct knnresult newResul
                newIndexes[i*k+j]=newResult.nidx[it1];
                it1++;
            }
+
+           //else if(newResult.ndist[it1]=oldResult.ndist[it2])){}
            else {
                //printf("%f is bigger than %f* it1 %d it2 %d   -> %d\n",newResult.ndist[it1],oldResult.ndist[it2], it1, it2,i*k+j);
                newNearest[i*k+j]=oldResult.ndist[it2];
