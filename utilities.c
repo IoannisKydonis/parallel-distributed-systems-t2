@@ -4,6 +4,30 @@
 #include <cblas.h> // cblas_dgemm
 #include "utilities.h"
 
+void *serializeKnnResult(knnresult res) {
+    char *serialized = (char *)malloc(res.m * res.k * 27 + res.m + 1);
+    int ind = 0;
+    for (int i = 0; i < res.m * res.k; i++) {
+        if (i % res.k == 0)
+            ind += sprintf(serialized + ind, "\n");
+        ind += sprintf(serialized + ind, "%16.8lf(%08d) ", res.ndist[i], res.nidx[i]);
+    }
+//    for (int j = 0; j < ind; j++) {
+//        if (serialized[j] == '\0') {
+//            printf("0");
+//        } else {
+//            printf("%c", serialized[j]);
+//        }
+//    }
+
+    *(serialized + ind) = '\0';
+    return (void *)serialized;
+}
+
+char *deserializeKnnResult(void *serialized) {
+    return (char *)serialized;
+}
+
 void hadamardProduct(double *x, double *y, double *res, int length)
 {
     for (int i = 0; i < length; i++)
@@ -62,26 +86,13 @@ void swapInts(int *n1, int *n2)
     *n2 = temp;
 }
 
-void printResult(knnresult result, int id){
-
-   printf("Nearest %d: ",id);
+void printResult(knnresult result) {
     for(int i=0; i<result.m * result.k; i++){
         if (i % result.k == 0) {
             printf("\n");
         }
-        printf("%f ", result.ndist[i]);
+        printf("%16.8f(%08d) ", result.ndist[i], result.nidx[i]);
     }
-    printf("\n");
-
-    printf("Indexes %d: ",id);
-    for(int i=0; i<result.m * result.k; i++){
-        if (i % result.k == 0) {
-            printf("\n");
-        }
-        printf("%d ", result.nidx[i]);
-    }
-    printf("\n");
-
 }
 
 struct knnresult smallKNN(double *x, double *y, int n, int m, int d, int k, int indexOffset)

@@ -10,6 +10,10 @@ typedef struct knnresult
     int k;         //!< Number of nearest neighbors            [scalar]
 }knnresult;
 
+void *serializeKnnResult(knnresult res);
+
+char *deserializeKnnResult(void *serialized);
+
 void hadamardProduct(double *x, double *y, double *res, int length);
 
 double kNearest(double *dist, int *indexValues, int l, int r, int k, int *idx);
@@ -20,7 +24,7 @@ void swap(double *n1, double *n2);
 
 void swapInts(int *n1, int *n2);
 
-void printResult(knnresult result, int id);
+void printResult(knnresult result);
 
 struct knnresult smallKNN(double *x, double *y, int n, int m, int d, int k, int indexOffset);
 
