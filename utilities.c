@@ -1,3 +1,7 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>  // sqrt
+#include <cblas.h> // cblas_dgemm
 #include "utilities.h"
 
 void hadamardProduct(double *x, double *y, double *res, int length)
@@ -57,3 +61,182 @@ void swapInts(int *n1, int *n2)
     *n1 = *n2;
     *n2 = temp;
 }
+
+void printResult(knnresult result, int id){
+
+   printf("Nearest %d: ",id);
+    for(int i=0; i<result.m * result.k; i++){
+        if (i % result.k == 0) {
+            printf("\n");
+        }
+        printf("%f ", result.ndist[i]);
+    }
+    printf("\n");
+
+    printf("Indexes %d: ",id);
+    for(int i=0; i<result.m * result.k; i++){
+        if (i % result.k == 0) {
+            printf("\n");
+        }
+        printf("%d ", result.nidx[i]);
+    }
+    printf("\n");
+
+}
+
+struct knnresult smallKNN(double *x, double *y, int n, int m, int d, int k, int indexOffset)
+{ 
+    struct knnresult *result = malloc(sizeof(struct knnresult));
+
+    double *xx = malloc(n * d * sizeof(double));
+    hadamardProduct(x, x, xx, n * d);
+
+    double *yy = malloc(m * d * sizeof(double));
+    hadamardProduct(y, y, yy, m * d);
+
+    double *xxSum = malloc(n * sizeof(double));
+    for (int i = 0; i < n; i++)
+    {
+        xxSum[i] = cblas_dasum(d, xx + i * d, 1);
+    }
+
+    double *yySum = malloc(m * sizeof(double));
+    for (int i = 0; i < m; i++)
+    {
+        yySum[i] = cblas_dasum(d, yy + i * d, 1);
+    }
+
+    double *xy = malloc(n * m * sizeof(double));
+    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, n, m, d, -2, x, d, y, d, 0, xy, m);
+
+    double *dist = malloc(n * m * sizeof(double));
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < m; j++)
+        {
+            dist[i * m + j] = sqrt(xxSum[i] + xy[i * m + j] + yySum[j]);
+        }
+    }
+
+
+    int *indexValues = (int *)malloc(n * m * sizeof(int));
+    for (int i = 0; i < n * m; i++)  
+        indexValues[i] = i+indexOffset;
+
+    int * indexesRowMajor=(int*)malloc(n*k*sizeof(int));
+    double * distRowMajor=(double*)malloc(n*k*sizeof(double));    
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < k; j++)
+        {
+            int idx;
+            distRowMajor[i*k +j] = kNearest(dist, indexValues, i * m, (i + 1) * m - 1, j + 1, &idx);
+            indexesRowMajor[i*k +j] = idx - i * m;
+        }
+    }
+
+    result->ndist=distRowMajor;
+    result->nidx=indexesRowMajor;
+    result->m=m;
+    result->k=k;
+
+
+    free(xx);
+    free(yy);
+    free(xy);
+    free(xxSum);
+    free(yySum);
+    return *result;
+}
+
+
+void dividePoints(int n, int tasks, int * array){
+   int points=n/tasks;
+   for(int i=0; i<n; i++){
+        array[i]=points;
+   }
+
+   int pointsLeft=n%tasks;
+   for(int i=0; pointsLeft>0; i++){
+        array[i]++;
+        pointsLeft--;
+   }
+}
+
+int findDestination(int id, int NumTasks){
+    if (id==NumTasks-1)
+    return 0;
+    else
+    return (id+1);
+}
+
+int findSender(int id, int NumTasks){
+    if(id==0)
+    return (NumTasks-1);
+    else
+    return (id-1);
+}
+
+struct knnresult updateKNN(struct knnresult oldResult, struct knnresult newResult ){
+   struct knnresult *result = malloc(sizeof(struct knnresult));
+   
+   int k,kmin;
+   int m=oldResult.m; //==newResult.m
+   if(oldResult.k>newResult.k){
+    k=oldResult.k;
+    kmin=newResult.k;
+    }
+   else{
+    k=newResult.k;
+    kmin=oldResult.k;
+   }
+
+   double * newNearest = malloc(m * k* sizeof(double));
+   int * newIndexes = malloc(m * k * sizeof(int));
+
+   for(int i=0; i< m ; i++){
+       int it1,it2; //iterator for old and new result.ndist
+       it1=it2=i*k;
+       for(int j =0; j<k ; j++){
+           if(newResult.ndist[it1]<=oldResult.ndist[it2]){
+               newNearest[i*k+j]=newResult.ndist[it1];
+               newIndexes[i*k+j]=newResult.nidx[it1];
+               if (newResult.nidx[it1] == oldResult.nidx[it2])
+                   it2++;
+               it1++;
+           }
+           else {
+               newNearest[i*k+j]=oldResult.ndist[it2];
+               newIndexes[i*k+j]=oldResult.nidx[it2];
+               if (newResult.nidx[it1] == oldResult.nidx[it2])
+                   it1++;
+               it2++;
+           }
+        }
+    }
+
+    result->ndist=newNearest; 
+    result->nidx=newIndexes;
+    result->m=oldResult.m;
+    result->k=oldResult.k;
+    return * result;
+
+}
+
+int findBlockArrayIndex(int id, int iteration, int NumTasks){ //iteration >=1
+int Y=id-iteration;
+if(Y<0)
+Y+=NumTasks;
+return Y;
+}
+
+int findIndexOffset(int id, int iteration, int NumTasks, int * totalPoints){ //total points is the number of the points before 
+int Y=findBlockArrayIndex(id, iteration, NumTasks);
+int result=0;
+for(int i=0;i<Y;i++)
+result+=totalPoints[i];
+
+return result;
+}
+
+
