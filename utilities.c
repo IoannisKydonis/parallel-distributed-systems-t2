@@ -12,20 +12,9 @@ void *serializeKnnResult(knnresult res) {
             ind += sprintf(serialized + ind, "\n");
         ind += sprintf(serialized + ind, "%16.8lf(%08d) ", res.ndist[i], res.nidx[i]);
     }
-//    for (int j = 0; j < ind; j++) {
-//        if (serialized[j] == '\0') {
-//            printf("0");
-//        } else {
-//            printf("%c", serialized[j]);
-//        }
-//    }
 
     *(serialized + ind) = '\0';
     return (void *)serialized;
-}
-
-char *deserializeKnnResult(void *serialized) {
-    return (char *)serialized;
 }
 
 void hadamardProduct(double *x, double *y, double *res, int length)

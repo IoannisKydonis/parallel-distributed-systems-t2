@@ -12,8 +12,6 @@ typedef struct knnresult
 
 void *serializeKnnResult(knnresult res);
 
-char *deserializeKnnResult(void *serialized);
-
 void hadamardProduct(double *x, double *y, double *res, int length);
 
 double kNearest(double *dist, int *indexValues, int l, int r, int k, int *idx);
