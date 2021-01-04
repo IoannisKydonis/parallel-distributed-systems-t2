@@ -8,10 +8,11 @@ void *serializeKnnResult(knnresult res) {
     char *serialized = (char *)malloc(res.m * res.k * 27 + res.m + 1);
     int ind = 0;
     for (int i = 0; i < res.m * res.k; i++) {
-        if (i % res.k == 0)
+        if (i % res.k == 0 && i != 0)
             ind += sprintf(serialized + ind, "\n");
         ind += sprintf(serialized + ind, "%16.8lf(%08d) ", res.ndist[i], res.nidx[i]);
     }
+    ind += sprintf(serialized + ind, "\n");
 
     *(serialized + ind) = '\0';
     return (void *)serialized;
@@ -82,6 +83,7 @@ void printResult(knnresult result) {
         }
         printf("%16.8f(%08d) ", result.ndist[i], result.nidx[i]);
     }
+    printf("\n");
 }
 
 struct knnresult smallKNN(double *x, double *y, int n, int m, int d, int k, int indexOffset)
