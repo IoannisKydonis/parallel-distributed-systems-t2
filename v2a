@@ -199,10 +199,10 @@ if(rightSize>0){
 }
 
 }
-else[
-   node->left=NULL;
-   node->right=NULL
-]
+else{
+   root->left=NULL;
+   root->right=NULL;
+}
 
 
 
