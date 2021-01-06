@@ -59,7 +59,6 @@ int main(int argc, char *argv[]) {
    int * indexValues= (int * )malloc(elements*sizeof(int));
    for(int i=0; i<elements; i++){
       indexValues[i]=i+offset;
-      //printf("IndexValues[%d] = %d\n",i,indexValues[i]);
    }
    printf("Elements: %d\n",elements);
    root=createVPTree(X,X,elements,d,indexValues, NULL);
@@ -112,8 +111,6 @@ int offset=0; //to split elements to the subtrees
 
 for (int i=0; i<n; i++){
    distances[i]=findDistance(x,x+i*d,d);
-   //localIndexValues[i]=i;
-   //printf("Dist %d is %f\n",indexValues[i],distances[i]);
 }
 
 int  idx;
@@ -122,38 +119,11 @@ double median=findMedian(distances,indexValues,n,&idx);  //after this distances 
 root->mu=median;
 root->vpIdx=indexValues[0];
 root->vp=(double *)malloc(d*sizeof(double));
-//printf("coords:");
 for(int j=0; j<d;j++){
    root->vp[j]=x[j];
-   //printf("%f ",root->vp[j]);
-
-}
-for (int i=0; i<n; i++){
 
 
 }
-//printf("Elements: \n");
-/*
-for(int i=0; i<n; i++)
-{
-   for(int j=0; j<d;j++){
-      printf("%f ",x[i*d+j]);
-
-   }
-}
-printf("\n");
-
-for(int i=0; i<n; i++)
-{
-   for(int j=0; j<d;j++){
-      printf("%f ",x[i*d+j]);
-
-   }
-   printf("(%d) ",indexValues[i]);
-}
-printf("\n");
-*/
-
 
 printNode(root,d,n);
 
@@ -166,28 +136,24 @@ int * rightIndexes=(int *)malloc(sizeof(int));
 int leftSize=1;
 int rightSize=1;
 int flag=0;
-//printf("entered for\n");
 
 for(int i=1; i<n; i++){
    if(distances[i]>median){
-    //printf("right size is %d\n",rightSize);
     rightElements=(double *)realloc(rightElements , rightSize*d*sizeof(double));
     rightIndexes= (int *)realloc(rightIndexes , rightSize*sizeof(int));
 
     for(int j=0; j<d; j++)
       rightElements[(rightSize-1)*d+j]=array[(indexValues[i]- offset)*d+j];
-    //printf("right indx: %d\n",i*d);
     rightIndexes[rightSize-1]=indexValues[i];
     rightSize++;
    }
    else{
-    //printf("left size is %d\n",leftSize);
+
     leftElements=(double *)realloc(leftElements , leftSize*d*sizeof(double));
     leftIndexes=(int *)realloc(leftIndexes , leftSize*sizeof(int));
 
     for(int j=0; j<d; j++)
       leftElements[(leftSize-1)*d+j]=array[(indexValues[i]- offset)*d+j];
-    //printf("left indx: %d\n",i*d);
     leftIndexes[leftSize-1]=indexValues[i];
     leftSize++;
     
@@ -197,7 +163,6 @@ for(int i=1; i<n; i++){
 leftSize--;
 rightSize--;
 
-//printf("left is %d and right is %d\n",leftSize,rightSize);
 printf("Left Subtree: \n");
 for(int i=0; i<leftSize; i++){
    for(int j=0; j<d; j++)
@@ -216,14 +181,10 @@ printf("\n");
 
 
 if(leftSize>0){
-   //printf("Elements for left: %d\n",leftSize);
-   //printf("called left\n");
    root->left=createVPTree(array, leftElements, leftSize, d,leftIndexes, root);
 }
 
 if(rightSize>0){
-   //printf("Elements for right: %d\n",rightSize);
-   //printf("called right\n");
    root->right=createVPTree(array, rightElements, rightSize, d,rightIndexes, root);
 }
 
@@ -233,7 +194,6 @@ else{
    root->right=NULL;
 }
 
-//printf("exit print\n");
 return root;
 
 }
