@@ -86,11 +86,12 @@ int main(int argc, char *argv[]) {
         printResult(mergedResult);
         for (int i = 1; i < NumTasks; i++) {
             char *deserialized = malloc(n * k * 27 + n + 1);
-            MPI_Recv(deserialized, n * k * 27 + n + 1, MPI_CHAR, i, 55, MPI_COMM_WORLD, &mpistat);
+            MPI_Recv(deserialized, n * k * 27 + n + 1, MPI_CHAR, i, 0, MPI_COMM_WORLD, &mpistat);
             printf("%s", deserialized);
+            free(deserialized);
         }
     } else {
-        MPI_Isend(serializeKnnResult(mergedResult), n * k * 27 + n + 1, MPI_CHAR, 0, 55, MPI_COMM_WORLD, &mpireq);
+        MPI_Isend(serializeKnnResult(mergedResult), n * k * 27 + n + 1, MPI_CHAR, 0, 0, MPI_COMM_WORLD, &mpireq);
     }
 
    MPI_Finalize();
