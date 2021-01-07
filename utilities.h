@@ -53,7 +53,7 @@ double findMedian(double * distances, int * indexValues, int n ,  int * idx);
 
 void printNode(vpNode * node,int d);
 
-vpNode * createVPTree(double * array, double *x, int n, int d, int * indexValues, vpNode * parent );
+vpNode * createVPTree(double * array, double *x, int n, int d, int * indexValues, vpNode * parent , int offset );
 
 void printTree (vpNode * root,int d);
 
