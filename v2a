@@ -28,9 +28,19 @@ int main(int argc, char *argv[]) {
         15, 7.2,
         -4.0, 1.1,
         8.4, -31.3};
+
+   double y[16] = {
+       -45.0, 10.1,
+        28.4, 31.329,
+        0.7, 1.4,
+        -8.4, -1.9,
+        15, 7.2,
+        -4.0, 1.1,
+        8.4, -31.3};
    d=2;
    k=3;
    n=15;
+
 
    int SelfTID, NumTasks, t;
    MPI_Status mpistat;
@@ -47,9 +57,9 @@ int main(int argc, char *argv[]) {
    double * X=(double *)malloc(points*d*sizeof(double));
    int min=totalPoints[0];
    for(int i=0; i<SelfTID; i++){
-   offset+=totalPoints[i];   
-   if(totalPoints[i]<min)
-   min=totalPoints[i];
+      offset+=totalPoints[i];   
+      if(totalPoints[i]<min)
+         min=totalPoints[i];
    }
    X=x+offset*d;
    vpNode * root=(vpNode *)malloc(sizeof(vpNode));
@@ -59,11 +69,29 @@ int main(int argc, char *argv[]) {
    int * indexValues= (int * )malloc(elements*sizeof(int));
    for(int i=0; i<elements; i++){
       indexValues[i]=i+offset;
+      for(int j=0; j<d; j++)
+         //printf("%f ", X[i*d+j]);
+      printf("(%d)", indexValues[i]);
    }
+
+   int * indexes=(int* )malloc(8 * sizeof(int));
+   for(int i=0; i<8; i++){
+      indexes[i]=i;
+   }
+
    printf("Elements: %d\n",elements);
-   root=createVPTree(X,X,elements,d,indexValues, NULL);
+   root=createVPTree(X,X,elements,d,indexValues, NULL, offset);
+   //root=createVPTree(y,y,8,2,indexes , NULL);
+   if(SelfTID==1)
    printTree(root,d);   
    /*
+   for(int i =0 ; i < n ; i++){
+      printf("Dist from %d: ",i);
+      for(int j=0; j < n; j++)
+         printf("%f(%d) ",findDistance(x + i*d,x+ j*d,d),j);
+      printf("\n");
+   }
+   
    MPI_Isend(X,sentElements,MPI_DOUBLE,findDestination(SelfTID, NumTasks),55,MPI_COMM_WORLD, &mpireq);  //send self block
 
    int sender=findSender(SelfTID, NumTasks);
@@ -99,14 +127,14 @@ int main(int argc, char *argv[]) {
    return(0);
 }
 
-vpNode * createVPTree(double * array, double *x, int n, int d, int * indexValues, vpNode * parent ){  //x represents a single block of elements  
+vpNode * createVPTree(double * array, double *x, int n, int d, int * indexValues, vpNode * parent, int offset ){  //x represents a single block of elements  
                                                                                           
 vpNode * root=(vpNode *)malloc(sizeof(vpNode));
 
 double * distances= (double *)malloc(n * sizeof(double));
 int * localIndexValues = (int *)malloc(n * sizeof(int));
 
-int offset=0; //to split elements to the subtrees
+//int offset=0; //to split elements to the subtrees
 
 for (int i=0; i<n; i++){
    distances[i]=findDistance(x,x+i*d,d);
@@ -127,7 +155,7 @@ for(int j=0; j<d;j++){
 //printNode(root,d);
 
 
-if(n>2){ //to save time from the mallocs and initializations
+if(n>1){ //to save time from the mallocs and initializations
 double * leftElements=(double *)malloc(sizeof(double));
 double * rightElements=(double *)malloc(sizeof(double));
 int * leftIndexes=(int *)malloc(sizeof(int));
@@ -138,24 +166,23 @@ int flag=0;
 
 for(int i=1; i<n; i++){
    if(distances[i]>median){
-    rightElements=(double *)realloc(rightElements , rightSize*d*sizeof(double));
-    rightIndexes= (int *)realloc(rightIndexes , rightSize*sizeof(int));
+      rightElements=(double *)realloc(rightElements , rightSize*d*sizeof(double));
+      rightIndexes= (int *)realloc(rightIndexes , rightSize*sizeof(int));
 
-    for(int j=0; j<d; j++)
-      rightElements[(rightSize-1)*d+j]=array[(indexValues[i]- offset)*d+j];
-    rightIndexes[rightSize-1]=indexValues[i];
-    rightSize++;
+      for(int j=0; j<d; j++)
+         rightElements[(rightSize-1)*d+j]=array[(indexValues[i]- offset)*d+j];
+      rightIndexes[rightSize-1]=indexValues[i];
+      rightSize++;
    }
    else{
 
-    leftElements=(double *)realloc(leftElements , leftSize*d*sizeof(double));
-    leftIndexes=(int *)realloc(leftIndexes , leftSize*sizeof(int));
+      leftElements=(double *)realloc(leftElements , leftSize*d*sizeof(double));
+      leftIndexes=(int *)realloc(leftIndexes , leftSize*sizeof(int));
 
-    for(int j=0; j<d; j++)
-      leftElements[(leftSize-1)*d+j]=array[(indexValues[i]- offset)*d+j];
-    leftIndexes[leftSize-1]=indexValues[i];
-    leftSize++;
-    
+      for(int j=0; j<d; j++)
+         leftElements[(leftSize-1)*d+j]=array[(indexValues[i]- offset)*d+j];
+      leftIndexes[leftSize-1]=indexValues[i];
+      leftSize++; 
    }
 }
 
@@ -181,11 +208,11 @@ printf("\n");
 
 
 if(leftSize>0){
-   root->left=createVPTree(array, leftElements, leftSize, d,leftIndexes, root);
+   root->left=createVPTree(array, leftElements, leftSize, d,leftIndexes, root,offset);
 }
 
 if(rightSize>0){
-   root->right=createVPTree(array, rightElements, rightSize, d,rightIndexes, root);
+   root->right=createVPTree(array, rightElements, rightSize, d,rightIndexes, root, offset);
 }
 
 }
@@ -201,7 +228,7 @@ return root;
 double findDistance (double * point1, double * point2, int d){
    double distance=0;
    for (int i=0;i<d;i++){
-    distance+=pow((point1[i]-point2[i]),2);
+      distance+=pow((point1[i]-point2[i]),2);
    }
    return sqrt(distance);
 }
@@ -227,8 +254,8 @@ void printNode(vpNode * node,int d){
    printf("mu is %f\n",node->mu);
    printf("Index is %d\n",node->vpIdx);
    printf("Cords: ");
-   for(int i=0; i<d;i++)
-   printf("%f ",node->vp[i]);
+   for(int i=0; i<d;i++) 
+      printf("%f ",node->vp[i]);
    printf("\n\n");
 
 }
@@ -262,12 +289,12 @@ printNode(root,d);
 
 printf("Left Point of %d: \n",root->vpIdx);
 if(root->left!=NULL)
-printTree(root->left,d);
+   printTree(root->left,d);
 
 
 printf("Right Point of %d: \n",root->vpIdx);
 if(root->right!=NULL)
-printTree(root->right,d);
+   printTree(root->right,d);
 
 
    
