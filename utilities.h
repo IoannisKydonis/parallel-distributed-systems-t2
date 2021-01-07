@@ -2,6 +2,15 @@
 #ifndef UTILITIES_H
 #define UTILITIES_H
 
+typedef struct vpNode {
+    struct vpNode *parent;
+    double *vp;
+    int vpIdx;
+    double mu;
+    struct vpNode *left;
+    struct vpNode *right;
+} vpNode;
+
 typedef struct knnresult
 {
     int *nidx;     //!< Indices (0-based) of nearest neighbors [m-by-k]
@@ -37,6 +46,16 @@ int findSender(int id, int NumTasks);
 int findBlockArrayIndex(int id, int iteration, int NumTasks);
 
 int findIndexOffset(int id, int iteration, int NumTasks, int * totalPoints);
+
+double findDistance (double * point1, double * point2, int d);
+
+double findMedian(double * distances, int * indexValues, int n ,  int * idx);
+
+void printNode(vpNode * node,int d);
+
+vpNode * createVPTree(double * array, double *x, int n, int d, int * indexValues, vpNode * parent );
+
+void printTree (vpNode * root,int d);
 
 
 #endif //UTILITIES_H
