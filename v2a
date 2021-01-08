@@ -130,6 +130,7 @@ int main(int argc, char *argv[]) {
 vpNode * createVPTree(double * array, double *x, int n, int d, int * indexValues, vpNode * parent, int offset ){  //x represents a single block of elements  
                                                                                           
 vpNode * root=(vpNode *)malloc(sizeof(vpNode));
+root->parent = parent;
 
 double * distances= (double *)malloc(n * sizeof(double));
 int * localIndexValues = (int *)malloc(n * sizeof(int));
