@@ -261,6 +261,14 @@ void printNode(vpNode * node,int d){
 
 }
 
+int isPresent(int *nidx, int target, int k) {
+    for (int i = 0; i < k; i++) {
+        if (nidx[i] == target)
+            return 1;
+    }
+    return 0;
+}
+
 void searchVpt(vpNode *node, double *ndist, int *nidx, int d, int k, double *x) {
     if (node == NULL || (node->left == NULL && node->right == NULL))
         return;
@@ -268,7 +276,7 @@ void searchVpt(vpNode *node, double *ndist, int *nidx, int d, int k, double *x) 
     double dist = findDistance(node->parent->vp, x,d);
 
     for (int i = 0; i < k; i++) {
-        if (dist < ndist[i]) {
+        if (dist < ndist[i] && !isPresent(nidx, node->parent->vpIdx, k)) {
             for (int j = k - 1; j > i; j--) {
                 ndist[j] = ndist[j - 1];
                 nidx[j] = nidx[j - 1];
