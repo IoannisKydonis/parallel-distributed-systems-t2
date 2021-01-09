@@ -7,18 +7,13 @@
 #include <float.h>
 
 vpNode *createVPTree(double *array, double *x, int n, int d, int *indexValues, vpNode *parent, int offset) {  //x represents a single block of elements
-
     vpNode *root = (vpNode *) malloc(sizeof(vpNode));
     root->parent = parent;
 
     double *distances = (double *) malloc(n * sizeof(double));
-    int *localIndexValues = (int *) malloc(n * sizeof(int));
 
-//int offset=0; //to split elements to the subtrees
-
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++)
         distances[i] = findDistance(x, x + i * d, d);
-    }
 
     int idx;
     double median = findMedian(distances, indexValues, n, &idx);  //after this distances is partitioned from kNearest function
@@ -26,101 +21,59 @@ vpNode *createVPTree(double *array, double *x, int n, int d, int *indexValues, v
     root->mu = median;
     root->vpIdx = indexValues[0];
     root->vp = (double *) malloc(d * sizeof(double));
-    for (int j = 0; j < d; j++) {
+    for (int j = 0; j < d; j++)
         root->vp[j] = x[j];
+
+    double *leftElements = (double *) malloc(0);
+    double *rightElements = (double *) malloc(0);
+    int *leftIndexes = (int *) malloc(0);
+    int *rightIndexes = (int *) malloc(0);
+    int leftSize = 0;
+    int rightSize = 0;
+
+    for (int i = 1; i < n; i++) {
+        if (distances[i] > median) {
+            rightSize++;
+            rightElements = (double *) realloc(rightElements, rightSize * d * sizeof(double));
+            rightIndexes = (int *) realloc(rightIndexes, rightSize * sizeof(int));
+
+            for (int j = 0; j < d; j++)
+                rightElements[(rightSize - 1) * d + j] = array[(indexValues[i] - offset) * d + j];
+            rightIndexes[rightSize - 1] = indexValues[i];
+        } else {
+            leftSize++;
+            leftElements = (double *) realloc(leftElements, leftSize * d * sizeof(double));
+            leftIndexes = (int *) realloc(leftIndexes, leftSize * sizeof(int));
+
+            for (int j = 0; j < d; j++)
+                leftElements[(leftSize - 1) * d + j] = array[(indexValues[i] - offset) * d + j];
+            leftIndexes[leftSize - 1] = indexValues[i];
+        }
     }
 
-//printNode(root,d);
-
-
-    if (n > 1) { //to save time from the mallocs and initializations
-        double *leftElements = (double *) malloc(sizeof(double));
-        double *rightElements = (double *) malloc(sizeof(double));
-        int *leftIndexes = (int *) malloc(sizeof(int));
-        int *rightIndexes = (int *) malloc(sizeof(int));
-        int leftSize = 1;
-        int rightSize = 1;
-        int flag = 0;
-
-        for (int i = 1; i < n; i++) {
-            if (distances[i] > median) {
-                rightElements = (double *) realloc(rightElements, rightSize * d * sizeof(double));
-                rightIndexes = (int *) realloc(rightIndexes, rightSize * sizeof(int));
-
-                for (int j = 0; j < d; j++)
-                    rightElements[(rightSize - 1) * d + j] = array[(indexValues[i] - offset) * d + j];
-                rightIndexes[rightSize - 1] = indexValues[i];
-                rightSize++;
-            } else {
-
-                leftElements = (double *) realloc(leftElements, leftSize * d * sizeof(double));
-                leftIndexes = (int *) realloc(leftIndexes, leftSize * sizeof(int));
-
-                for (int j = 0; j < d; j++)
-                    leftElements[(leftSize - 1) * d + j] = array[(indexValues[i] - offset) * d + j];
-                leftIndexes[leftSize - 1] = indexValues[i];
-                leftSize++;
-            }
-        }
-
-        leftSize--;
-        rightSize--;
-/*
-printf("Left Subtree: \n");
-for(int i=0; i<leftSize; i++){
-   for(int j=0; j<d; j++)
-      printf("%f ",leftElements[i*d+j]);
-   printf(" (%d) - %f\n", leftIndexes[i],distances[i+1] );
-}
-printf("\n");
-
-printf("Right Subtree: \n");
-for(int i=0; i<rightSize; i++){
-   for(int j=0; j<d; j++)
-      printf("%f ",rightElements[i*d+j]);
-   printf(" (%d) - %f\n", rightIndexes[i],distances[i+1+leftSize] );
-}
-printf("\n");
-*/
-
-
-        if (leftSize > 0) {
-            root->left = createVPTree(array, leftElements, leftSize, d, leftIndexes, root, offset);
-        }
-
-        if (rightSize > 0) {
-            root->right = createVPTree(array, rightElements, rightSize, d, rightIndexes, root, offset);
-        }
-
-    } else {
-        root->left = NULL;
-        root->right = NULL;
-    }
+    if (leftSize > 0)
+        root->left = createVPTree(array, leftElements, leftSize, d, leftIndexes, root, offset);
+    if (rightSize > 0)
+        root->right = createVPTree(array, rightElements, rightSize, d, rightIndexes, root, offset);
 
     return root;
-
 }
 
 double findDistance(double *point1, double *point2, int d) {
     double distance = 0;
-    for (int i = 0; i < d; i++) {
+    for (int i = 0; i < d; i++)
         distance += pow((point1[i] - point2[i]), 2);
-    }
     return sqrt(distance);
 }
 
 double findMedian(double *distances, int *indexValues, int n, int *idx) {
-    double median;
     if (n % 2 == 0) {
         int idx2;
-        median = kNearest(distances, indexValues, 0, n - 1, n / 2, idx) +
-                 kNearest(distances, indexValues, 0, n - 1, n / 2 + 1, &idx2);
-        median /= 2;
+        return (kNearest(distances, indexValues, 0, n - 1, n / 2, idx) +
+                kNearest(distances, indexValues, 0, n - 1, n / 2 + 1, &idx2)) / 2;
     } else {
-        median = kNearest(distances, indexValues, 0, n - 1, n / 2 + 1, idx);
+        return kNearest(distances, indexValues, 0, n - 1, n / 2 + 1, idx);
     }
-
-    return median;
 }
 
 void printNode(vpNode *node, int d) {
@@ -131,7 +84,6 @@ void printNode(vpNode *node, int d) {
     for (int i = 0; i < d; i++)
         printf("%f ", node->vp[i]);
     printf("\n\n");
-
 }
 
 int isPresent(int *nidx, int target, int k) {
@@ -158,9 +110,8 @@ void searchVpt(vpNode *node, knnresult *result, int d, double *x) {
     double dist = findDistance(node->vp, x, d);
 
     for (int i = 0; i < result->k; i++) {
-        if (dist < result->ndist[i] && !isPresent(result->nidx, node->vpIdx, result->k)) {
+        if (dist < result->ndist[i] && !isPresent(result->nidx, node->vpIdx, result->k))
             insertValueToResult(result, dist, node->vpIdx, i);
-        }
     }
     double tau = result->ndist[result->k - 1];
     if (dist <= node->mu + tau)
@@ -172,17 +123,13 @@ void searchVpt(vpNode *node, knnresult *result, int d, double *x) {
 void printTree(vpNode *root, int d) {
     printNode(root, d);
 
-
     printf("Left Point of %d: \n", root->vpIdx);
     if (root->left != NULL)
         printTree(root->left, d);
 
-
     printf("Right Point of %d: \n", root->vpIdx);
     if (root->right != NULL)
         printTree(root->right, d);
-
-
 }
 
 int main(int argc, char *argv[]) {
@@ -259,7 +206,6 @@ int main(int argc, char *argv[]) {
 
     printf("Elements: %d\n", elements);
     root = createVPTree(X, X, elements, d, indexValues, NULL, offset);
-    //root=createVPTree(y,y,8,2,indexes , NULL);
     if (SelfTID == 1)
         printTree(root, d);
     /*
@@ -320,5 +266,5 @@ int main(int argc, char *argv[]) {
     }
 
     MPI_Finalize();
-    return (0);
+    return 0;
 }
