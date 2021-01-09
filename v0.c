@@ -6,15 +6,6 @@
 
 struct knnresult kNN(double *x, double *y, int n, int m, int d, int k);
 
-// Definition of the kNN result struct
-struct knnresult
-{
-    int *nidx;     //!< Indices (0-based) of nearest neighbors [m-by-k]
-    double *ndist; //!< Distance of nearest neighbors          [m-by-k]
-    int m;         //!< Number of query points                 [scalar]
-    int k;         //!< Number of nearest neighbors            [scalar]
-};
-
 int MAX_Y_SIZE = 3;
 
 int main(int argc, char *argv[])
@@ -42,23 +33,7 @@ int main(int argc, char *argv[])
     result=kNN(x, y, 10, 5, 2, 5);
     printf("m=%d k=%d\n", result.m, result.k);
 
-    printf("Nearest: ");
-    for(int i=0; i<result.m * result.k; i++){
-        if (i % result.k == 0) {
-            printf("\n");
-        }
-        printf("%f ", result.ndist[i]);
-    }
-    printf("\n");
-
-    printf("Indexes: ");
-    for(int i=0; i<result.m * result.k; i++){
-        if (i % result.k == 0) {
-            printf("\n");
-        }
-        printf("%d ", result.nidx[i]);
-    }
-    printf("\n");
+    printResult(result);
 
     free(result.nidx);
     free(result.ndist);
