@@ -98,9 +98,9 @@ struct knnresult kNN(double *x, double *y, int n, int m, int d, int k)
             {
                 double distanceSquared = xxSum[i] + xy[i * partitionSize + j] + yySum[j];
                 if (distanceSquared <= 0)
-                    dist[i * m + j] = 0;
+                    dist[j * n + i] = 0;
                 else
-                    dist[i * m + j] = sqrt(distanceSquared);
+                    dist[j * n + i] = sqrt(distanceSquared);
             }
         }
 
