@@ -108,10 +108,10 @@ void searchVpt(vpNode *node, knnresult *result, int d, double *x, int offset) {
             break;
         }
     }
-    double tau = result->ndist[result->k - 1];
+    double tau = result->ndist[result->k + offset - 1];
     if (dist <= node->mu + tau)
         searchVpt(node->left, result, d, x, offset);
-    if (dist > node->mu - tau)
+    if (dist >= node->mu - tau)
         searchVpt(node->right, result, d, x, offset);
 }
 
@@ -185,11 +185,8 @@ int main(int argc, char *argv[]) {
     int offset = 0;
 
     double *X = (double *) malloc(points * d * sizeof(double));
-    int min = totalPoints[0];
     for (int i = 0; i < SelfTID; i++) {
         offset += totalPoints[i];
-        if (totalPoints[i] < min)
-            min = totalPoints[i];
     }
     X = x + offset * d;
     vpNode *root = (vpNode *) malloc(sizeof(vpNode));
@@ -212,8 +209,6 @@ int main(int argc, char *argv[]) {
     int off;
     struct knnresult mergedResult;
 
-    if (k > min)
-        k = min - 1;
     struct knnresult *result = (struct knnresult *)malloc(sizeof(struct knnresult));
     result->ndist = (double *)malloc(totalPoints[SelfTID] * k * sizeof(double));
     result->nidx = (int *)malloc(totalPoints[SelfTID] * k * sizeof(int));
