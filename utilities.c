@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>  // sqrt
 #include <cblas.h> // cblas_dgemm
+#include <float.h>
 #include "utilities.h"
 
 void *serializeKnnResult(knnresult res) {
@@ -122,14 +123,21 @@ struct knnresult smallKNN(double *x, double *y, int n, int m, int d, int k, int 
 
 
     int *indexValues = (int *)malloc(n * m * sizeof(int));
-    for (int i = 0; i < n * m; i++)  
+    for (int i = 0; i < n * m; i++)
         indexValues[i] = i+indexOffset;
 
+    int kMin = k > n ? n : k;
+    kMin = kMin > m ? m : kMin;
+
     int * indexesRowMajor=(int*)malloc(n*k*sizeof(int));
-    double * distRowMajor=(double*)malloc(n*k*sizeof(double));    
+    double * distRowMajor=(double*)malloc(n*k*sizeof(double));
+    for (int i = 0; i < n * k; i++) {
+        distRowMajor[i] = DBL_MAX;
+        indexesRowMajor[i] = -1;
+    }
     for (int i = 0; i < n; i++)
     {
-        for (int j = 0; j < k; j++)
+        for (int j = 0; j < kMin; j++)
         {
             int idx;
             distRowMajor[i*k +j] = kNearest(dist, indexValues, i * m, (i + 1) * m - 1, j + 1, &idx);

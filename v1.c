@@ -44,11 +44,8 @@ int main(int argc, char *argv[]) {
    int offset=0;
 
    double * X=(double *)malloc(points*d*sizeof(double));
-   int min=totalPoints[0];
    for(int i=0; i<SelfTID; i++){
-   offset+=totalPoints[i];   
-   if(totalPoints[i]<min)
-   min=totalPoints[i];
+   offset+=totalPoints[i];
    }
    X=x+offset*d;
 
@@ -62,8 +59,6 @@ int main(int argc, char *argv[]) {
    int off;
    struct knnresult mergedResult;
 
-   if(k>min)
-   k=min-1;
    struct knnresult result,previousResult;
    result=smallKNN(X,X,points,points,d,k,offset);
    previousResult=result;
