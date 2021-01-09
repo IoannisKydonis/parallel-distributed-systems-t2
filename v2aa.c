@@ -305,7 +305,7 @@ int main(int argc, char *argv[]) {
     int *nidx = (int *) malloc(k * sizeof(int));
     for (int i = 0; i < k; i++) {
         ndist[i] = DBL_MAX;
-        nidx[i] = root->vpIdx;
+        nidx[i] = -1;
     }
 
     searchVpt(root, ndist, nidx, d, k, xx);
