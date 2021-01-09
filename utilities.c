@@ -117,9 +117,15 @@ struct knnresult smallKNN(double *x, double *y, int n, int m, int d, int k, int 
     {
         for (int j = 0; j < m; j++)
         {
-            dist[i * m + j] = sqrt(xxSum[i] + xy[i * m + j] + yySum[j]);
+            double distanceSquared = xxSum[i] + xy[i * m + j] + yySum[j];
+            if (distanceSquared <= 0)
+                dist[i * m + j] = 0;
+            else
+                dist[i * m + j] = sqrt(distanceSquared);
         }
     }
+
+
 
 
     int *indexValues = (int *)malloc(n * m * sizeof(int));
@@ -250,3 +256,9 @@ return result;
 }
 
 
+double findDistance(double *point1, double *point2, int d) {
+    double distance = 0;
+    for (int i = 0; i < d; i++)
+        distance += pow((point1[i] - point2[i]), 2);
+    return sqrt(distance);
+}
