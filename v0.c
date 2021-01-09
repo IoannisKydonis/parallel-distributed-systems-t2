@@ -47,13 +47,6 @@ int main(int argc, char *argv[])
 
     result=kNN(x, y, 15, 15, 2, 5);
 
-    for(int i=0; i<15; i++){
-        printf("Dist from %d: ",i);
-        for(int j=0; j<15; j++)
-            printf("%f(%d) ",findDistance(x+i*2,x+j*2,2),j);
-        printf("\n");
-    }
-
     printResult(result);
 
     free(result.nidx);
