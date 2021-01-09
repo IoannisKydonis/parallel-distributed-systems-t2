@@ -103,21 +103,23 @@ void insertValueToResult(knnresult *result, double value, int idx, int position)
     result->nidx[position] = idx;
 }
 
-void searchVpt(vpNode *node, knnresult *result, int d, double *x) {
+void searchVpt(vpNode *node, knnresult *result, int d, double *x, int idx) {
     if (node == NULL)
         return;
 
     double dist = findDistance(node->vp, x, d);
 
     for (int i = 0; i < result->k; i++) {
-        if (dist < result->ndist[i] && !isPresent(result->nidx, node->vpIdx, result->k))
-            insertValueToResult(result, dist, node->vpIdx, i);
+        if (dist < result->ndist[idx * d + i] /*&& !isPresent(result->nidx, node->vpIdx, result->k)*/) {
+            insertValueToResult(result, dist, node->vpIdx, idx * d + i);
+            break;
+        }
     }
     double tau = result->ndist[result->k - 1];
     if (dist <= node->mu + tau)
-        searchVpt(node->left, result, d, x);
+        searchVpt(node->left, result, d, x, idx);
     if (dist > node->mu - tau)
-        searchVpt(node->right, result, d, x);
+        searchVpt(node->right, result, d, x, idx);
 }
 
 void printTree(vpNode *root, int d) {
@@ -130,6 +132,24 @@ void printTree(vpNode *root, int d) {
     printf("Right Point of %d: \n", root->vpIdx);
     if (root->right != NULL)
         printTree(root->right, d);
+}
+
+double *mergeArrays(double *arr1, double *arr2, int len1, int len2) {
+    double *merged = (double *)malloc((len1 + len2) * sizeof(double));
+    for (int i = 0; i < len1; i++)
+        merged[i] = arr1[i];
+    for (int i = 0; i < len2; i++)
+        merged[len1 + i] = arr2[i];
+    return merged;
+}
+
+int *mergeIntArrays(int *arr1, int *arr2, int len1, int len2) {
+    int *merged = (int *)malloc((len1 + len2) * sizeof(int));
+    for (int i = 0; i < len1; i++)
+        merged[i] = arr1[i];
+    for (int i = 0; i < len2; i++)
+        merged[len1 + i] = arr2[i];
+    return merged;
 }
 
 int main(int argc, char *argv[]) {
@@ -206,64 +226,93 @@ int main(int argc, char *argv[]) {
 
     printf("Elements: %d\n", elements);
     root = createVPTree(X, X, elements, d, indexValues, NULL, offset);
-    if (SelfTID == 1)
-        printTree(root, d);
-    /*
-    for(int i =0 ; i < n ; i++){
-       printf("Dist from %d: ",i);
-       for(int j=0; j < n; j++)
-          printf("%f(%d) ",findDistance(x + i*d,x+ j*d,d),j);
-       printf("\n");
-    }
+//    if (SelfTID == 1)
+//        printTree(root, d);
 
-    MPI_Isend(X,sentElements,MPI_DOUBLE,findDestination(SelfTID, NumTasks),55,MPI_COMM_WORLD, &mpireq);  //send self block
 
-    int sender=findSender(SelfTID, NumTasks);
+//    for (int i = 0; i < n; i++) {
+//        printf("Dist from %d: ", i);
+//        for (int j = 0; j < n; j++)
+//            printf("%f(%d) ", findDistance(x + i * d, x + j * d, d), j);
+//        printf("\n");
+//    }
+
+    int sentElements = totalPoints[SelfTID] * d;
+    MPI_Isend(X, sentElements, MPI_DOUBLE, findDestination(SelfTID, NumTasks), 55, MPI_COMM_WORLD, &mpireq);  //send self block
+
+    int sender = findSender(SelfTID, NumTasks);
     int receivedArrayIndex;
     int receivedElements;
     struct knnresult newResult;
     int off;
     struct knnresult mergedResult;
 
-    if(k>min)
-    k=min-1;
-    struct knnresult result,previousResult;
-    result=smallKNN(X,X,points,points,d,k,offset);
-    previousResult=result;
+    if (k > min)
+        k = min - 1;
+    struct knnresult result, previousResult;
+    result = smallKNN(X, X, points, points, d, k, offset);
+    previousResult = result;
 
-    for (int i=1; i<NumTasks; i++){  //loop
+    for (int i = 1; i < NumTasks; i++) {  //loop
 
-    receivedArrayIndex=findBlockArrayIndex(SelfTID, i, NumTasks);
-    receivedElements=totalPoints[receivedArrayIndex] * d;
-    double * Y= malloc(receivedElements * sizeof(double));
-    MPI_Recv(Y,receivedElements,MPI_DOUBLE,sender,55,MPI_COMM_WORLD,&mpistat); //receive from previous process
-    MPI_Isend(Y,receivedElements,MPI_DOUBLE,findDestination(SelfTID, NumTasks),55,MPI_COMM_WORLD, &mpireq); //send the received array to next process
+        receivedArrayIndex = findBlockArrayIndex(SelfTID, i, NumTasks);
+        receivedElements = totalPoints[receivedArrayIndex] * d;
+        double *Y = malloc(receivedElements * sizeof(double));
+        MPI_Recv(Y, receivedElements, MPI_DOUBLE, sender, 55, MPI_COMM_WORLD, &mpistat); //receive from previous process
+        MPI_Isend(Y, receivedElements, MPI_DOUBLE, findDestination(SelfTID, NumTasks), 55, MPI_COMM_WORLD, &mpireq); //send the received array to next process
 
-    off=findIndexOffset(SelfTID,i,NumTasks,totalPoints);
-    newResult=smallKNN(X,Y,points,points,d,k,off);
-    mergedResult=updateKNN(newResult,previousResult);
-    previousResult=mergedResult;
+
+
+
+        int elements2 = totalPoints[SelfTID];
+        int *indexValues2 = (int *) malloc(elements2 * sizeof(int));
+        for (int ii = 0; ii < elements2; ii++) {
+            indexValues2[ii] = ii + offset;
+//            for (int j = 0; j < d; j++)
+//                //printf("%f ", X[i*d+j]);
+//                printf("(%d)", indexValues2[ii]);
+        }
+
+        int *indexes2 = (int *) malloc(8 * sizeof(int));
+        for (int ii = 0; ii < 8; i++) {
+            indexes2[ii] = ii;
+        }
+
+        double *merged = mergeArrays(X, Y, sentElements, receivedElements);
+        int *block1Indexes = (int *)malloc(sentElements / d * sizeof(int));
+        int *block2Indexes = (int *)malloc(receivedElements / d * sizeof(int));
+        for (int ii = 0; ii < sentElements / d; ii++) {
+            block1Indexes[ii] = ii;
+        }
+        for (int ii = 0; ii < receivedElements / d; ii++) {
+            block2Indexes[ii] = ii + off;
+        }
+        int *mergedIndexes = mergeIntArrays(block1Indexes, block2Indexes, sentElements / d, receivedElements / d);
+        off = findIndexOffset(SelfTID, i, NumTasks, totalPoints);
+        root = createVPTree(merged, merged, elements2, d, indexValues2, NULL, off);
+
+        struct knnresult *res = (struct knnresult *)malloc(sizeof(struct knnresult));
+        res->ndist = (double *)malloc((sentElements + receivedElements) * sizeof(double));
+        res->nidx = (int *)malloc((sentElements + receivedElements) / d * sizeof(int));
+        for (int ii = 0; ii < sentElements + receivedElements; ii++) {
+            res->ndist[ii] = DBL_MAX;
+        }
+        for (int ii = 0; ii < (sentElements + receivedElements) / d; ii++) {
+            res->nidx[ii] = -1;
+        }
+
+        for (int ii = 0; ii < sentElements + receivedElements; ii++) {
+            searchVpt(root, res, d, merged + ii * d, mergedIndexes[ii * d]);
+        }
+
+
+        newResult = smallKNN(X, Y, points, points, d, k, off);
+        mergedResult = updateKNN(*res, previousResult);
+        previousResult = mergedResult;
     }
-    if(SelfTID==0)
-    printResult(mergedResult, SelfTID);
-    */
+    if (SelfTID == 0)
+        printResult(mergedResult);
 
-    double *xx = (double *) malloc(d * sizeof(double));
-    xx[0] = 1.5;
-    xx[1] = 7.2;
-    knnresult *result = (knnresult *)malloc(sizeof(knnresult));
-    result->ndist = (double *) malloc(k * sizeof(double));
-    result->nidx = (int *) malloc(k * sizeof(int));
-    result->k = k;
-    for (int i = 0; i < k; i++) {
-        result->ndist[i] = DBL_MAX;
-        result->nidx[i] = -1;
-    }
-
-    searchVpt(root, result, d, xx);
-    for (int i = 0; i < k; i++) {
-        printf("%16.8lf(%d)\n", result->ndist[i], result->nidx[i]);
-    }
 
     MPI_Finalize();
     return 0;
