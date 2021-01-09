@@ -67,6 +67,7 @@ int main(int argc, char *argv[]) {
    struct knnresult result,previousResult;
    result=smallKNN(X,X,points,points,d,k,offset);
    previousResult=result;
+   mergedResult=result;
 
    for (int i=1; i<NumTasks; i++){  //loop
 
