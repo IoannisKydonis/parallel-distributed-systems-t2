@@ -6,7 +6,7 @@
 #include <mpi.h>
 #include <float.h>
 
-vpNode *createVPTree(double *array, double *x, int n, int d, int *indexValues, vpNode *parent, int offset) {  //x represents a single block of elements
+vpNode *createVPTree(double *array, double *x, int n, int d, int *indexValues, vpNode *parent, int *offsets) {  //x represents a single block of elements
     vpNode *root = (vpNode *) malloc(sizeof(vpNode));
     root->parent = parent;
 
@@ -16,13 +16,13 @@ vpNode *createVPTree(double *array, double *x, int n, int d, int *indexValues, v
         distances[i] = findDistance(x, x + i * d, d);
 
     int idx;
-    double median = findMedian(distances, indexValues, n, &idx);  //after this distances is partitioned from kNearest function
+    double median = findMedian(distances, indexValues, offsets, n, &idx);  //after this distances is partitioned from kNearest function
 
     root->mu = median;
     root->vpIdx = indexValues[0];
     root->vp = (double *) malloc(d * sizeof(double));
     for (int j = 0; j < d; j++)
-        root->vp[j] = x[j];
+        root->vp[j] = x[j]; // TODO: verify correctness
 
     double *leftElements = (double *) malloc(0);
     double *rightElements = (double *) malloc(0);
@@ -38,7 +38,7 @@ vpNode *createVPTree(double *array, double *x, int n, int d, int *indexValues, v
             rightIndexes = (int *) realloc(rightIndexes, rightSize * sizeof(int));
 
             for (int j = 0; j < d; j++)
-                rightElements[(rightSize - 1) * d + j] = array[(indexValues[i] - offset) * d + j];
+                rightElements[(rightSize - 1) * d + j] = array[(indexValues[i] - offsets[i]) * d + j];
             rightIndexes[rightSize - 1] = indexValues[i];
         } else {
             leftSize++;
@@ -46,26 +46,26 @@ vpNode *createVPTree(double *array, double *x, int n, int d, int *indexValues, v
             leftIndexes = (int *) realloc(leftIndexes, leftSize * sizeof(int));
 
             for (int j = 0; j < d; j++)
-                leftElements[(leftSize - 1) * d + j] = array[(indexValues[i] - offset) * d + j];
+                leftElements[(leftSize - 1) * d + j] = array[(indexValues[i] - offsets[i]) * d + j];
             leftIndexes[leftSize - 1] = indexValues[i];
         }
     }
 
     if (leftSize > 0)
-        root->left = createVPTree(array, leftElements, leftSize, d, leftIndexes, root, offset);
+        root->left = createVPTree(array, leftElements, leftSize, d, leftIndexes, root, offsets);
     if (rightSize > 0)
-        root->right = createVPTree(array, rightElements, rightSize, d, rightIndexes, root, offset);
+        root->right = createVPTree(array, rightElements, rightSize, d, rightIndexes, root, offsets);
 
     return root;
 }
 
-double findMedian(double *distances, int *indexValues, int n, int *idx) {
+double findMedian(double *distances, int *indexValues, int *offsets, int n, int *idx) {
     if (n % 2 == 0) {
         int idx2;
-        return (kNearest(distances, indexValues, 0, n - 1, n / 2, idx) +
-                kNearest(distances, indexValues, 0, n - 1, n / 2 + 1, &idx2)) / 2;
+        return (kNearestWithOffsets(distances, indexValues, offsets, 0, n - 1, n / 2, idx) +
+                kNearestWithOffsets(distances, indexValues, offsets, 0, n - 1, n / 2 + 1, &idx2)) / 2;
     } else {
-        return kNearest(distances, indexValues, 0, n - 1, n / 2 + 1, idx);
+        return kNearestWithOffsets(distances, indexValues, offsets, 0, n - 1, n / 2 + 1, idx);
     }
 }
 
@@ -168,7 +168,7 @@ int main(int argc, char *argv[]) {
             8.4, -31.3};
 
     d = 2;
-    k = 3;
+    k = 6;
     n = 15;
 
 
@@ -196,8 +196,12 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < elements; i++) {
         indexValues[i] = i + offset;
     }
+    int *offsets = (int *) malloc(elements * sizeof(int));
+    for (int i = 0; i < elements; i++) {
+        offsets[i] = offset;
+    }
 
-    root = createVPTree(X, X, elements, d, indexValues, NULL, offset);
+    root = createVPTree(X, X, elements, d, indexValues, NULL, offsets);
 
     int sentElements = totalPoints[SelfTID] * d;
     MPI_Isend(X, sentElements, MPI_DOUBLE, findDestination(SelfTID, NumTasks), 55, MPI_COMM_WORLD, &mpireq);  //send self block
@@ -210,10 +214,10 @@ int main(int argc, char *argv[]) {
     struct knnresult mergedResult;
 
     struct knnresult *result = (struct knnresult *)malloc(sizeof(struct knnresult));
-    result->ndist = (double *)malloc(totalPoints[SelfTID] * k * sizeof(double));
-    result->nidx = (int *)malloc(totalPoints[SelfTID] * k * sizeof(int));
+    result->ndist = (double *)malloc(elements * k * sizeof(double));
+    result->nidx = (int *)malloc(elements * k * sizeof(int));
     result->k = k;
-    result->m = totalPoints[SelfTID];
+    result->m = elements;
     for (int ii = 0; ii < result->m * k; ii++) {
         result->ndist[ii] = DBL_MAX;
         result->nidx[ii] = -1;
@@ -221,8 +225,8 @@ int main(int argc, char *argv[]) {
 
     struct knnresult previousResult;
 
-    for (int i = 0; i < totalPoints[SelfTID]; i++) {
-        searchVpt(root, result, d, X + (offset + i) * d, (offset + i) * k);
+    for (int i = 0; i < elements; i++) {
+        searchVpt(root, result, d, X + (i) * d, (i) * k);
     }
     previousResult = *result;
     mergedResult = previousResult;
@@ -235,28 +239,39 @@ int main(int argc, char *argv[]) {
         MPI_Recv(Y, receivedElements, MPI_DOUBLE, sender, 55, MPI_COMM_WORLD, &mpistat); //receive from previous process
         MPI_Isend(Y, receivedElements, MPI_DOUBLE, findDestination(SelfTID, NumTasks), 55, MPI_COMM_WORLD, &mpireq); //send the received array to next process
 
+        off = findIndexOffset(SelfTID, i, NumTasks, totalPoints);
         int elements2 = totalPoints[receivedArrayIndex];
-        int *indexValues2 = (int *) malloc(elements2 * sizeof(int));
+        int *indexValues2 = (int *) malloc((elements + elements2) * sizeof(int));
+        for (int ii = 0; ii < elements; ii++) {
+            indexValues2[ii] = ii + offset;
+        }
         for (int ii = 0; ii < elements2; ii++) {
-            indexValues2[ii] = ii + off;
+            indexValues2[elements + ii] = ii + off;
+        }
+
+        int *offsets2 = (int *) malloc((elements + elements2) * sizeof(int));
+        for (int ii = 0; ii < elements; ii++) {
+            offsets2[ii] = offset;
+        }
+        for (int ii = 0; ii < elements2; ii++) {
+            offsets2[elements + ii] = off;
         }
 
         double *merged = mergeArrays(X, Y, sentElements, receivedElements);
-        off = findIndexOffset(SelfTID, i, NumTasks, totalPoints);
-        root = createVPTree(merged, merged, elements2, d, indexValues2, NULL, off);
+        root = createVPTree(merged, merged, elements + elements2, d, indexValues2, NULL, offsets2);
 
         struct knnresult *res = (struct knnresult *)malloc(sizeof(struct knnresult));
-        res->ndist = (double *)malloc(totalPoints[receivedArrayIndex] * k * sizeof(double));
-        res->nidx = (int *)malloc(totalPoints[receivedArrayIndex] * k * sizeof(int));
+        res->ndist = (double *)malloc(elements * k * sizeof(double));
+        res->nidx = (int *)malloc(elements * k * sizeof(int));
         res->k = k;
-        res->m = totalPoints[receivedArrayIndex];
-        for (int ii = 0; ii < res->m * k; ii++) {
+        res->m = elements;
+        for (int ii = 0; ii < elements * k; ii++) {
             res->ndist[ii] = DBL_MAX;
             res->nidx[ii] = -1;
         }
 
-        for (int ii = 0; ii < elements2; ii++) {
-            searchVpt(root, res, d, X + (off + ii) * d, (off + ii) * k);
+        for (int ii = 0; ii < elements; ii++) {
+            searchVpt(root, res, d, X + (ii) * d, (ii) * k);
         }
 
         mergedResult = updateKNN(*res, previousResult);

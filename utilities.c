@@ -63,6 +63,45 @@ int partition(double *dist, int *indexValues, int left, int right)
     return i;
 }
 
+double kNearestWithOffsets(double *dist, int *indexValues, int *offsets, int left, int right, int k, int *idx)
+{
+    int pivot = partitionWithOffsets(dist, indexValues, offsets, left, right);
+
+    if (k < pivot - left + 1)
+    {
+        return kNearest(dist, indexValues, left, pivot - 1, k, idx);
+    }
+    else if (k > pivot - left + 1)
+    {
+        return kNearest(dist, indexValues, pivot + 1, right, k - pivot + left - 1, idx);
+    }
+    else
+    {
+        *idx = indexValues[pivot];
+        return dist[pivot];
+    }
+}
+
+int partitionWithOffsets(double *dist, int *indexValues, int *offsets, int left, int right)
+{
+    double x = dist[right];
+    int i = left;
+    for (int j = left; j <= right - 1; j++)
+    {
+        if (dist[j] <= x)
+        {
+            swap(&dist[i], &dist[j]);
+            swapInts(&indexValues[i], &indexValues[j]);
+            swapInts(&offsets[i], &offsets[j]);
+            i++;
+        }
+    }
+    swap(&dist[i], &dist[right]);
+    swapInts(&indexValues[i], &indexValues[right]);
+    swapInts(&offsets[i], &offsets[right]);
+    return i;
+}
+
 void swap(double *n1, double *n2)
 {
     double temp = *n1;
