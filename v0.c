@@ -45,7 +45,14 @@ int main(int argc, char *argv[])
             -4.0, 1.1,
             8.4, -31.3};
 
-    result=kNN(x, y, 15, 15, 2, 3);
+    result=kNN(x, y, 15, 15, 2, 5);
+
+    for(int i=0; i<15; i++){
+        printf("Dist from %d: ",i);
+        for(int j=0; j<15; j++)
+            printf("%f(%d) ",findDistance(x+i*2,x+j*2,2),j);
+        printf("\n");
+    }
 
     printResult(result);
 
@@ -96,7 +103,11 @@ struct knnresult kNN(double *x, double *y, int n, int m, int d, int k)
         {
             for (int i = 0; i < n; i++)
             {
-                dist[j * n + i] = sqrt(xxSum[i] + xy[i * partitionSize + j] + yySum[j]);
+                double distanceSquared = xxSum[i] + xy[i * partitionSize + j] + yySum[j];
+                if (distanceSquared <= 0)
+                    dist[i * m + j] = 0;
+                else
+                    dist[i * m + j] = sqrt(distanceSquared);
             }
         }
 
