@@ -147,7 +147,7 @@ struct knnresult smallKNN(double *x, double *y, int n, int m, int d, int k, int 
 
     result->ndist=distRowMajor;
     result->nidx=indexesRowMajor;
-    result->m=m;
+    result->m=n;
     result->k=k;
 
 

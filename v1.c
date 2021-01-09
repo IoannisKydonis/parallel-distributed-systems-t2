@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
    MPI_Isend(Y,receivedElements,MPI_DOUBLE,findDestination(SelfTID, NumTasks),55,MPI_COMM_WORLD, &mpireq); //send the received array to next process
 
    off=findIndexOffset(SelfTID,i,NumTasks,totalPoints);
-   newResult=smallKNN(X,Y,points,points,d,k,off);
+   newResult=smallKNN(X,Y,points,totalPoints[receivedArrayIndex],d,k,off);
    mergedResult=updateKNN(newResult,previousResult);
    previousResult=mergedResult;
    }
