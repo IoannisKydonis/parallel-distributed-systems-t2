@@ -59,13 +59,6 @@ vpNode *createVPTree(double *array, double *x, int n, int d, int *indexValues, v
     return root;
 }
 
-double findDistance(double *point1, double *point2, int d) {
-    double distance = 0;
-    for (int i = 0; i < d; i++)
-        distance += pow((point1[i] - point2[i]), 2);
-    return sqrt(distance);
-}
-
 double findMedian(double *distances, int *indexValues, int n, int *idx) {
     if (n % 2 == 0) {
         int idx2;
