@@ -142,27 +142,31 @@ int isPresent(int *nidx, int target, int k) {
     return 0;
 }
 
-void searchVpt(vpNode *node, double *ndist, int *nidx, int d, int k, double *x) {
+void insertValueToResult(knnresult *result, double value, int idx, int position) {
+    for (int j = result->k - 1; j > position; j--) {
+        result->ndist[j] = result->ndist[j - 1];
+        result->nidx[j] = result->nidx[j - 1];
+    }
+    result->ndist[position] = value;
+    result->nidx[position] = idx;
+}
+
+void searchVpt(vpNode *node, knnresult *result, int d, double *x) {
     if (node == NULL)
         return;
 
     double dist = findDistance(node->vp, x, d);
 
-    for (int i = 0; i < k; i++) {
-        if (dist < ndist[i] && !isPresent(nidx, node->vpIdx, k)) {
-            for (int j = k - 1; j > i; j--) {
-                ndist[j] = ndist[j - 1];
-                nidx[j] = nidx[j - 1];
-            }
-            ndist[i] = dist;
-            nidx[i] = node->vpIdx;
+    for (int i = 0; i < result->k; i++) {
+        if (dist < result->ndist[i] && !isPresent(result->nidx, node->vpIdx, result->k)) {
+            insertValueToResult(result, dist, node->vpIdx, i);
         }
     }
-    double tau = ndist[k - 1];
+    double tau = result->ndist[result->k - 1];
     if (dist <= node->mu + tau)
-        searchVpt(node->left, ndist, nidx, d, k, x);
+        searchVpt(node->left, result, d, x);
     if (dist > node->mu - tau)
-        searchVpt(node->right, ndist, nidx, d, k, x);
+        searchVpt(node->right, result, d, x);
 }
 
 void printTree(vpNode *root, int d) {
@@ -301,16 +305,18 @@ int main(int argc, char *argv[]) {
     double *xx = (double *) malloc(d * sizeof(double));
     xx[0] = 1.5;
     xx[1] = 7.2;
-    double *ndist = (double *) malloc(k * sizeof(double));
-    int *nidx = (int *) malloc(k * sizeof(int));
+    knnresult *result = (knnresult *)malloc(sizeof(knnresult));
+    result->ndist = (double *) malloc(k * sizeof(double));
+    result->nidx = (int *) malloc(k * sizeof(int));
+    result->k = k;
     for (int i = 0; i < k; i++) {
-        ndist[i] = DBL_MAX;
-        nidx[i] = -1;
+        result->ndist[i] = DBL_MAX;
+        result->nidx[i] = -1;
     }
 
-    searchVpt(root, ndist, nidx, d, k, xx);
+    searchVpt(root, result, d, xx);
     for (int i = 0; i < k; i++) {
-        printf("%16.8lf(%d)\n", ndist[i], nidx[i]);
+        printf("%16.8lf(%d)\n", result->ndist[i], result->nidx[i]);
     }
 
     MPI_Finalize();
