@@ -9,30 +9,30 @@
 #include "types.h"
 #include "controller.h"
 
+knnresult distrAllkNN(double *x, int n, int d, int k);
+
 vpNode *createVPTree(double *array, double *x, int n, int d, int *indexValues, vpNode *parent, int *offsets);
 
 void searchVpt(vpNode *node, knnresult *result, int d, double *x, int offset);
-
-knnresult distrAllkNN(double * x,  int n, int d, int k);
 
 int main(int argc, char *argv[]) {
     int SelfTID, NumTasks;
     MPI_Status mpistat;
     MPI_Request mpireq;  //initialize MPI environment
-    MPI_Init( &argc, &argv );
-    MPI_Comm_size( MPI_COMM_WORLD, &NumTasks );
-    MPI_Comm_rank( MPI_COMM_WORLD, &SelfTID );
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &NumTasks);
+    MPI_Comm_rank(MPI_COMM_WORLD, &SelfTID);
 
     int natoi = atoi(argv[1]);
     int datoi = atoi(argv[2]);
     int katoi = atoi(argv[3]);
-    int upper=10000;
-    int lower=-10000;
-    int normal=100;
+    int upper = 10000;
+    int lower = -10000;
+    int normal = 100;
 
-    double * random = (double *)malloc(natoi * datoi *sizeof(double));
-    for(int i=0; i< natoi*datoi; i++ ){
-        random[i]=(double)((rand()%(upper-lower+1))+lower)/normal;
+    double *random = (double *) malloc(natoi * datoi * sizeof(double));
+    for (int i = 0; i < natoi * datoi; i++) {
+        random[i] = (double) ((rand() % (upper - lower + 1)) + lower) / normal;
         //printf("%f \n",random[i]);
     }
 
@@ -63,9 +63,9 @@ int main(int argc, char *argv[]) {
 
     d = 2;
     k = 6;
-    n = 30/d;
+    n = 30 / d;
 
-    char *filename = (char *)malloc(16 * sizeof(char));
+    char *filename = (char *) malloc(16 * sizeof(char));
     sprintf(filename, "v2_res_%04d.txt\0", SelfTID);
     knnresult mergedResult = runAndPresentResult(distrAllkNN, x, n, d, k, "v2", "v2_out.txt", filename);
     free(filename);
@@ -82,29 +82,99 @@ int main(int argc, char *argv[]) {
         MPI_Isend(serializeKnnResult(mergedResult), n * k * 27 + n + 1, MPI_CHAR, 0, 0, MPI_COMM_WORLD, &mpireq);
     }
 
-     MPI_Finalize();
-     return(0);
-
+    MPI_Finalize();
+    return 0;
 }
 
+knnresult distrAllkNN(double *x, int n, int d, int k) {
+    int SelfTID, NumTasks;
+    MPI_Status mpistat;
+    MPI_Request mpireq;  //initialize MPI environment
+    MPI_Comm_size(MPI_COMM_WORLD, &NumTasks);
+    MPI_Comm_rank(MPI_COMM_WORLD, &SelfTID);
 
-void searchVpt(vpNode *node, knnresult *result, int d, double *x, int offset) {
-    if (node == NULL)
-        return;
+    int *totalPoints = (int *) malloc(n * sizeof(int));
+    dividePoints(n, NumTasks, totalPoints);
+    int elements = totalPoints[SelfTID]; //find elements for self block
+    int offset = 0;
 
-    double dist = findDistance(node->vp, x, d);
-
-    for (int i = 0; i < result->k; i++) {
-        if (dist < result->ndist[offset + i]) {
-            insertValueToResult(result, dist, node->vpIdx, offset + i, offset);
-            break;
-        }
+    double *X = (double *) malloc(elements * d * sizeof(double));  //each process takes a block from X
+    for (int i = 0; i < SelfTID; i++) {
+        offset += totalPoints[i];
     }
-    double tau = result->ndist[result->k + offset - 1];
-    if (dist <= node->mu + tau)
-        searchVpt(node->left, result, d, x, offset);
-    if (dist >= node->mu - tau)
-        searchVpt(node->right, result, d, x, offset);
+    X = x + offset * d;
+    vpNode *root = (vpNode *) malloc(sizeof(vpNode));
+
+    int *indexValues = (int *) malloc(elements * sizeof(int));  //initialize offsets and indexes
+    int *offsets = (int *) malloc(elements * sizeof(int));
+    for (int i = 0; i < elements; i++) {
+        indexValues[i] = i + offset;
+        offsets[i] = offset;
+    }
+
+    root = createVPTree(X, X, elements, d, indexValues, NULL, offsets);  //create local vptree
+
+    free(indexValues);
+    free(offsets);
+
+    int sentElements = elements * d;
+    MPI_Isend(X, sentElements, MPI_DOUBLE, findDestination(SelfTID, NumTasks), 55, MPI_COMM_WORLD, &mpireq);  //send self block
+
+    int sender = findSender(SelfTID, NumTasks);
+    int receivedArrayIndex, receivedElements;  //variables for later use in ring communication
+    struct knnresult newResult, mergedResult, previousResult;
+
+    struct knnresult *result = (struct knnresult *) malloc(sizeof(struct knnresult));  //initialize result for local vptree
+    initializeResult(result, elements, k);
+
+    for (int i = 0; i < elements; i++) {
+        searchVpt(root, result, d, X + (i) * d, (i) * k);  //search knearest for each point
+    }
+    previousResult = *result;
+    mergedResult = previousResult;
+
+    for (int i = 1; i < NumTasks; i++) {  //ring communication
+
+        receivedArrayIndex = findBlockArrayIndex(SelfTID, i, NumTasks);
+        receivedElements = totalPoints[receivedArrayIndex];
+        double *Y = malloc(receivedElements * d * sizeof(double));
+        MPI_Recv(Y, receivedElements * d, MPI_DOUBLE, sender, 55, MPI_COMM_WORLD, &mpistat); //receive from previous process
+        MPI_Isend(Y, receivedElements * d, MPI_DOUBLE, findDestination(SelfTID, NumTasks), 55, MPI_COMM_WORLD, &mpireq); //send the received array to next process
+
+        int loopOffset = findIndexOffset(SelfTID, i, NumTasks, totalPoints);
+
+        int *mergedIndexes = (int *) malloc(
+                (elements + receivedElements) * sizeof(int));  //initialize merged indexes and offsets
+        int *mergedOffsets = (int *) malloc((elements + receivedElements) * sizeof(int));
+
+        for (int ii = 0; ii < elements; ii++) {
+            mergedIndexes[ii] = ii + offset;
+            mergedOffsets[ii] = offset;
+        }
+        for (int ii = 0; ii < receivedElements; ii++) {
+            mergedIndexes[elements + ii] = ii + loopOffset;
+            mergedOffsets[elements + ii] = loopOffset - elements;
+        }
+
+        double *mergedArray = mergeArrays(X, Y, sentElements, receivedElements * d);
+        root = createVPTree(mergedArray, mergedArray, elements + receivedElements, d, mergedIndexes, NULL, mergedOffsets); //create vptree for merged array
+
+        struct knnresult *newResult = (struct knnresult *) malloc(sizeof(struct knnresult));  //initialize struct
+        initializeResult(newResult, elements, k);
+
+        for (int ii = 0; ii < elements; ii++) {
+            searchVpt(root, newResult, d, X + (ii) * d, (ii) * k); //search knearest for each point
+        }
+
+        mergedResult = updateKNN(*newResult, previousResult);  //update neighbors
+        previousResult = mergedResult;
+
+        free(Y);
+        free(mergedIndexes);
+        free(mergedOffsets);
+    }
+
+    return mergedResult;
 }
 
 vpNode *createVPTree(double *array, double *x, int n, int d, int *indexValues, vpNode *parent, int *offsets) {  //x represents a single block of elements
@@ -176,96 +246,21 @@ vpNode *createVPTree(double *array, double *x, int n, int d, int *indexValues, v
     return root;
 }
 
-knnresult distrAllkNN(double * x, int n, int d , int k){
+void searchVpt(vpNode *node, knnresult *result, int d, double *x, int offset) {
+    if (node == NULL)
+        return;
 
-    int SelfTID, NumTasks;
-    MPI_Status mpistat;
-    MPI_Request mpireq;  //initialize MPI environment
-    MPI_Comm_size( MPI_COMM_WORLD, &NumTasks );
-    MPI_Comm_rank( MPI_COMM_WORLD, &SelfTID );
+    double dist = findDistance(node->vp, x, d);
 
-    int *totalPoints = (int *) malloc(n * sizeof(int));
-    dividePoints(n, NumTasks, totalPoints);
-    int elements = totalPoints[SelfTID]; //find elements for self block
-    int offset = 0;
-
-    double *X = (double *) malloc(elements * d * sizeof(double));  //each process takes a block from X
-    for (int i = 0; i < SelfTID; i++) {
-        offset += totalPoints[i];
-    }
-    X = x + offset * d;
-    vpNode *root = (vpNode *) malloc(sizeof(vpNode));
-
-    int *indexValues = (int *) malloc(elements * sizeof(int));  //initialize offsets and indexes
-    int *offsets = (int *) malloc(elements * sizeof(int));
-    for (int i = 0; i < elements; i++) {
-        indexValues[i] = i + offset;
-        offsets[i] = offset;
-    }
-
-    root = createVPTree(X, X, elements, d, indexValues, NULL, offsets);  //create local vptree
-
-    free(indexValues);
-    free(offsets);
-
-    int sentElements = elements * d;
-    MPI_Isend(X, sentElements, MPI_DOUBLE, findDestination(SelfTID, NumTasks), 55, MPI_COMM_WORLD, &mpireq);  //send self block
-
-    int sender = findSender(SelfTID, NumTasks);
-    int receivedArrayIndex,receivedElements;  //variables for later use in ring communication
-    struct knnresult newResult,mergedResult,previousResult;
-
-    struct knnresult *result = (struct knnresult *)malloc(sizeof(struct knnresult));  //initialize result for local vptree
-    initializeResult(result,elements,k);
-
-    for (int i = 0; i < elements; i++) {
-        searchVpt(root, result, d, X + (i) * d, (i) * k);  //search knearest for each point
-    }
-    previousResult = *result;
-    mergedResult = previousResult;
-
-    for (int i = 1; i < NumTasks; i++) {  //ring communication
-
-        receivedArrayIndex = findBlockArrayIndex(SelfTID, i, NumTasks);
-        receivedElements = totalPoints[receivedArrayIndex];
-        double *Y = malloc(receivedElements * d * sizeof(double));
-        MPI_Recv(Y, receivedElements * d , MPI_DOUBLE, sender, 55, MPI_COMM_WORLD, &mpistat); //receive from previous process
-        MPI_Isend(Y, receivedElements * d, MPI_DOUBLE, findDestination(SelfTID, NumTasks), 55, MPI_COMM_WORLD, &mpireq); //send the received array to next process
-
-        int loopOffset = findIndexOffset(SelfTID, i, NumTasks, totalPoints);
-
-        int *mergedIndexes = (int *) malloc((elements + receivedElements) * sizeof(int));  //initialize merged indexes and offsets
-        int *mergedOffsets = (int *) malloc((elements + receivedElements) * sizeof(int));
-
-        for (int ii = 0; ii < elements; ii++) {
-            mergedIndexes[ii] = ii + offset;
-            mergedOffsets[ii] = offset;
+    for (int i = 0; i < result->k; i++) {
+        if (dist < result->ndist[offset + i]) {
+            insertValueToResult(result, dist, node->vpIdx, offset + i, offset);
+            break;
         }
-        for (int ii = 0; ii < receivedElements; ii++) {
-            mergedIndexes[elements + ii] = ii + loopOffset;
-            mergedOffsets[elements + ii] = loopOffset - elements;
-        }
-
-        double *mergedArray = mergeArrays(X, Y, sentElements, receivedElements * d);
-        root = createVPTree(mergedArray, mergedArray, elements + receivedElements, d, mergedIndexes, NULL, mergedOffsets); //create vptree for merged array
-
-        struct knnresult *newResult = (struct knnresult *)malloc(sizeof(struct knnresult));  //initialize struct 
-        initializeResult(newResult,elements,k);
-
-        for (int ii = 0; ii < elements; ii++) {
-            searchVpt(root, newResult, d, X + (ii) * d, (ii) * k); //search knearest for each point
-        }
-
-        mergedResult = updateKNN(*newResult, previousResult);  //update neighbors
-        previousResult = mergedResult;
-
-        free(Y);
-        free(mergedIndexes);
-        free(mergedOffsets);
-
     }
-
-
-    return mergedResult;
-
+    double tau = result->ndist[result->k + offset - 1];
+    if (dist <= node->mu + tau)
+        searchVpt(node->left, result, d, x, offset);
+    if (dist >= node->mu - tau)
+        searchVpt(node->right, result, d, x, offset);
 }

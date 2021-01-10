@@ -9,8 +9,7 @@ struct knnresult kNN(double *x, double *y, int n, int m, int d, int k);
 
 int MAX_Y_SIZE = 3;
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     struct knnresult result;
     double x[30] = {
             1.0, 2.0,
@@ -46,7 +45,7 @@ int main(int argc, char *argv[])
             -4.0, 1.1,
             8.4, -31.3};
 
-    result=kNN(x, y, 15, 15, 2, 6);
+    result = kNN(x, y, 15, 15, 2, 6);
 
     printResult(result);
 
@@ -54,22 +53,20 @@ int main(int argc, char *argv[])
     free(result.ndist);
 }
 
-struct knnresult kNN(double *x, double *y, int n, int m, int d, int k)
-{
+struct knnresult kNN(double *x, double *y, int n, int m, int d, int k) {
     struct knnresult *result = malloc(sizeof(struct knnresult));
-    int * indexesRowMajor=(int*)malloc(m*k*sizeof(int));
-    double * distRowMajor=(double*)malloc(m*k*sizeof(double));
+    int *indexesRowMajor = (int *) malloc(m * k * sizeof(int));
+    double *distRowMajor = (double *) malloc(m * k * sizeof(double));
 
     double *xx = malloc(n * d * sizeof(double));
     hadamardProduct(x, x, xx, n * d);
 
     double *xxSum = malloc(n * sizeof(double));
-    for (int i = 0; i < n; i++)
-    {
+    for (int i = 0; i < n; i++) {
         xxSum[i] = cblas_dasum(d, xx + i * d, 1);
     }
 
-    for (int ii = 0; ii < ceil(m / (double)MAX_Y_SIZE); ii++) {
+    for (int ii = 0; ii < ceil(m / (double) MAX_Y_SIZE); ii++) {
         int partitionSize = MAX_Y_SIZE;
         if (ii * MAX_Y_SIZE + partitionSize > m) {
             partitionSize = m % MAX_Y_SIZE;
@@ -84,8 +81,7 @@ struct knnresult kNN(double *x, double *y, int n, int m, int d, int k)
         hadamardProduct(currentY, currentY, yy, partitionSize * d);
 
         double *yySum = malloc(partitionSize * sizeof(double));
-        for (int i = 0; i < partitionSize; i++)
-        {
+        for (int i = 0; i < partitionSize; i++) {
             yySum[i] = cblas_dasum(d, yy + i * d, 1);
         }
 
@@ -93,10 +89,8 @@ struct knnresult kNN(double *x, double *y, int n, int m, int d, int k)
         cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, n, partitionSize, d, -2, x, d, currentY, d, 0, xy, partitionSize);
 
         double *dist = malloc(n * partitionSize * sizeof(double));
-        for (int j = 0; j < partitionSize; j++)
-        {
-            for (int i = 0; i < n; i++)
-            {
+        for (int j = 0; j < partitionSize; j++) {
+            for (int i = 0; i < n; i++) {
                 double distanceSquared = xxSum[i] + xy[i * partitionSize + j] + yySum[j];
                 if (distanceSquared <= 0)
                     dist[j * n + i] = 0;
@@ -105,17 +99,15 @@ struct knnresult kNN(double *x, double *y, int n, int m, int d, int k)
             }
         }
 
-        int *indexValues = (int *)malloc(n * partitionSize * sizeof(int));
+        int *indexValues = (int *) malloc(n * partitionSize * sizeof(int));
         for (int i = 0; i < n * partitionSize; i++)
             indexValues[i] = i;
 
-        for (int i = 0; i < partitionSize; i++)
-        {
-            for (int j = 0; j < k; j++)
-            {
+        for (int i = 0; i < partitionSize; i++) {
+            for (int j = 0; j < k; j++) {
                 int idx;
-                distRowMajor[ii * MAX_Y_SIZE * k + i*k +j] = kNearest(dist, indexValues, i * n, (i + 1) * n - 1, j + 1, &idx);
-                indexesRowMajor[ii * MAX_Y_SIZE * k + i*k +j] = idx - i * n;
+                distRowMajor[ii * MAX_Y_SIZE * k + i * k + j] = kNearest(dist, indexValues, i * n, (i + 1) * n - 1, j + 1, &idx);
+                indexesRowMajor[ii * MAX_Y_SIZE * k + i * k + j] = idx - i * n;
             }
         }
 
@@ -129,10 +121,10 @@ struct knnresult kNN(double *x, double *y, int n, int m, int d, int k)
     free(xx);
     free(xxSum);
 
-    result->ndist=distRowMajor;
-    result->nidx=indexesRowMajor;
-    result->m=m;
-    result->k=k;
+    result->ndist = distRowMajor;
+    result->nidx = indexesRowMajor;
+    result->m = m;
+    result->k = k;
 
     return *result;
 }
