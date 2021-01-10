@@ -28,8 +28,6 @@ int main(int argc, char *argv[]) {
     int lower=-10000;
     int normal=100;
     
-    //printf("natoi: %d, datoi: %d, katoi: %d \n",natoi,datoi,katoi);
-
     double * random = (double *)malloc(natoi * datoi *sizeof(double));
     for(int i=0; i< natoi*datoi; i++ ){
         random[i]=(double)((rand()%(upper-lower+1))+lower)/normal;
@@ -57,12 +55,16 @@ int main(int argc, char *argv[]) {
             -4.0, 1.1,
             8.4, -31.3};
 
-    d = datoi;
-    k = katoi;
-    n = natoi;
+    // d = datoi;
+    // k = katoi;
+    // n = natoi;
+
+    d = 2;
+    k = 6;
+    n = 30/d;
 
     knnresult mergedResult;
-    mergedResult=distrAllkNN(random,natoi,datoi,katoi);
+    mergedResult=distrAllkNN(x,n,d,k);
 
     if (SelfTID == 0) {    //send every result to the first process for printing
         printResult(mergedResult);
@@ -159,6 +161,14 @@ vpNode *createVPTree(double *array, double *x, int n, int d, int *indexValues, v
     if (rightSize > 0)
         root->right = createVPTree(array, rightElements, rightSize, d, rightIndexes, root, rightOffsets);
 
+    free(leftElements);
+    free(rightElements);
+    free(leftIndexes);
+    free(rightIndexes);
+    free(leftOffsets);
+    free(rightOffsets);
+    free(distances);
+
     return root;
 }
 
@@ -190,6 +200,9 @@ knnresult distrAllkNN(double * x, int n, int d , int k){
     }
 
     root = createVPTree(X, X, elements, d, indexValues, NULL, offsets);  //create local vptree
+
+    free(indexValues);
+    free(offsets);
 
     int sentElements = elements * d;
     MPI_Isend(X, sentElements, MPI_DOUBLE, findDestination(SelfTID, NumTasks), 55, MPI_COMM_WORLD, &mpireq);  //send self block
@@ -241,7 +254,13 @@ knnresult distrAllkNN(double * x, int n, int d , int k){
 
         mergedResult = updateKNN(*newResult, previousResult);  //update neighbors
         previousResult = mergedResult;
+
+        free(Y);
+        free(mergedIndexes);
+        free(mergedOffsets);
+
     }
+    
 
     return mergedResult;
 
