@@ -11,7 +11,29 @@ knnresult distrAllkNN(double * x,  int n, int d, int k);
 
 
 int main(int argc, char *argv[]) {
+    int SelfTID, NumTasks;
+    MPI_Status mpistat;
+    MPI_Request mpireq;  //initialize MPI environment
+    MPI_Init( &argc, &argv );
+    MPI_Comm_size( MPI_COMM_WORLD, &NumTasks );
+    MPI_Comm_rank( MPI_COMM_WORLD, &SelfTID );
+
+    int natoi = atoi(argv[1]);
+    int datoi = atoi(argv[2]);
+    int katoi = atoi(argv[3]);
+    int upper=10000;
+    int lower=-10000;
+    int normal=100;
     
+    //printf("natoi: %d, datoi: %d, katoi: %d \n",natoi,datoi,katoi);
+
+    double * random = (double *)malloc(natoi * datoi *sizeof(double));
+    for(int i=0; i< natoi*datoi; i++ ){
+        random[i]=(double)((rand()%(upper-lower+1))+lower)/normal;
+        //printf("%f \n",random[i]);
+    }
+
+
     int n;
     int d; //= atoi(argv[1]);
     int k;
@@ -31,16 +53,13 @@ int main(int argc, char *argv[]) {
             15, 7.2,
             -4.0, 1.1,
             8.4, -31.3};
-    d=2;
-    k=5;
-    n=15;
 
-    int SelfTID, NumTasks;
-    MPI_Status mpistat;
-    MPI_Request mpireq;  //initialize MPI environment
-    MPI_Init( &argc, &argv );
-    MPI_Comm_size( MPI_COMM_WORLD, &NumTasks );
-    MPI_Comm_rank( MPI_COMM_WORLD, &SelfTID );
+    // d = datoi;
+    // k = katoi;
+    // n = natoi;
+    d=2;
+    n=30/d;
+    k=6;
 
     knnresult mergedResult;
     mergedResult=distrAllkNN(x,n,d,k);
@@ -181,6 +200,8 @@ knnresult distrAllkNN(double * x , int n, int d, int k){
    newResult=smallKNN(X,Y,points,totalPoints[receivedArrayIndex],d,k,loopOffset);
    mergedResult=updateKNN(newResult,previousResult);
    previousResult=mergedResult;
+   
+    free(Y);
    }
 
     return mergedResult;
