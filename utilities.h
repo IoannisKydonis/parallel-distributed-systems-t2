@@ -37,8 +37,6 @@ void swapInts(int *n1, int *n2);
 
 void printResult(knnresult result);
 
-struct knnresult smallKNN(double *x, double *y, int n, int m, int d, int k, int indexOffset);
-
 struct knnresult updateKNN(struct knnresult oldResult, struct knnresult newResult );
 
 void dividePoints(int n, int tasks, int * array);
@@ -57,9 +55,15 @@ double findMedian(double *distances, int *indexValues, int *offsets, int n, int 
 
 void printNode(vpNode * node,int d);
 
-vpNode *createVPTree(double *array, double *x, int n, int d, int *indexValues, vpNode *parent, int *offsets);
-
 void printTree (vpNode * root,int d);
+
+double *mergeArrays(double *arr1, double *arr2, int len1, int len2);
+
+int *mergeIntArrays(int *arr1, int *arr2, int len1, int len2);
+
+void initializeResult( knnresult *result, int elements, int k);
+
+void insertValueToResult(knnresult *result, double value, int idx, int position, int offset);
 
 
 #endif //UTILITIES_H
