@@ -57,9 +57,9 @@ int main(int argc, char *argv[]) {
             -4.0, 1.1,
             8.4, -31.3};
 
-    d = 2;
-    k = 6;
-    n = 15;
+    d = datoi;
+    k = katoi;
+    n = natoi;
 
     knnresult mergedResult;
     mergedResult=distrAllkNN(random,natoi,datoi,katoi);
