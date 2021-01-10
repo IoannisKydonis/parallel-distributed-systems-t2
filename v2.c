@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>  // sqrt
+#include <math.h>  // sqrt, pow
 #include <cblas.h> // cblas_dgemm
 #include "utilities.h"
 #include <mpi.h>
-#include <float.h>
+#include <float.h> //DBL_MAX
+#include <time.h> //rand
 
 vpNode *createVPTree(double *array, double *x, int n, int d, int *indexValues, vpNode *parent, int *offsets);
 
@@ -13,6 +14,28 @@ void searchVpt(vpNode *node, knnresult *result, int d, double *x, int offset);
 knnresult distrAllkNN(double * x,  int n, int d, int k);
 
 int main(int argc, char *argv[]) {
+    int SelfTID, NumTasks;
+    MPI_Status mpistat;
+    MPI_Request mpireq;  //initialize MPI environment
+    MPI_Init( &argc, &argv );
+    MPI_Comm_size( MPI_COMM_WORLD, &NumTasks );
+    MPI_Comm_rank( MPI_COMM_WORLD, &SelfTID );
+
+    int natoi = atoi(argv[1]);
+    int datoi = atoi(argv[2]);
+    int katoi = atoi(argv[3]);
+    int upper=10000;
+    int lower=-10000;
+    int normal=100;
+    
+    //printf("natoi: %d, datoi: %d, katoi: %d \n",natoi,datoi,katoi);
+
+    double * random = (double *)malloc(natoi * datoi *sizeof(double));
+    for(int i=0; i< natoi*datoi; i++ ){
+        random[i]=(double)((rand()%(upper-lower+1))+lower)/normal;
+        //printf("%f \n",random[i]);
+    }
+
 
     int n;
     int d; //= atoi(argv[1]);
@@ -38,16 +61,8 @@ int main(int argc, char *argv[]) {
     k = 6;
     n = 15;
 
-
-    int SelfTID, NumTasks;
-    MPI_Status mpistat;
-    MPI_Request mpireq;  //initialize MPI environment
-    MPI_Init( &argc, &argv );
-    MPI_Comm_size( MPI_COMM_WORLD, &NumTasks );
-    MPI_Comm_rank( MPI_COMM_WORLD, &SelfTID );
-
     knnresult mergedResult;
-    mergedResult=distrAllkNN(x,n,d,k);
+    mergedResult=distrAllkNN(random,natoi,datoi,katoi);
 
     if (SelfTID == 0) {    //send every result to the first process for printing
         printResult(mergedResult);
@@ -61,8 +76,9 @@ int main(int argc, char *argv[]) {
         MPI_Isend(serializeKnnResult(mergedResult), n * k * 27 + n + 1, MPI_CHAR, 0, 0, MPI_COMM_WORLD, &mpireq);
     }
 
-    MPI_Finalize();
-    return(0);
+     MPI_Finalize();
+     return(0);
+
 }
 
 
