@@ -4,6 +4,7 @@
 #include <cblas.h> // cblas_dgemm
 #include <float.h>
 #include "utilities.h"
+#include "types.h"
 
 void *serializeKnnResult(knnresult res) {
     char *serialized = (char *)malloc(res.m * res.k * 27 + res.m + 1);

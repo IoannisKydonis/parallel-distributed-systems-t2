@@ -3,6 +3,7 @@
 #include <math.h>  // sqrt
 #include <cblas.h> // cblas_dgemm
 #include "utilities.h"
+#include "types.h"
 
 struct knnresult kNN(double *x, double *y, int n, int m, int d, int k);
 
@@ -45,7 +46,7 @@ int main(int argc, char *argv[])
             -4.0, 1.1,
             8.4, -31.3};
 
-    result=kNN(x, y, 15, 15, 2, 5);
+    result=kNN(x, y, 15, 15, 2, 6);
 
     printResult(result);
 

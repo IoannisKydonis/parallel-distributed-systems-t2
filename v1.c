@@ -2,8 +2,10 @@
 #include <stdlib.h>
 #include <math.h>  // sqrt
 #include <cblas.h> // cblas_dgemm
-#include "utilities.h"
 #include <mpi.h>
+#include "utilities.h"
+#include "types.h"
+#include "controller.h"
 
 struct knnresult smallKNN(double *x, double *y, int n, int m, int d, int k, int indexOffset);
 
@@ -62,7 +64,11 @@ int main(int argc, char *argv[]) {
     k=6;
 
     knnresult mergedResult;
-    mergedResult=distrAllkNN(x,n,d,k);
+//    mergedResult=distrAllkNN(x,n,d,k);
+    char *filename = (char *)malloc(16 * sizeof(char));
+    sprintf(filename, "v1_out_%04d.txt\0", SelfTID);
+    mergedResult = runAndPresentResult(distrAllkNN, x, n, d, k, "v1", "v1_out.txt", filename);
+    free(filename);
 
     if (SelfTID == 0) {    //send every result to the first process for printing
         printResult(mergedResult);
@@ -83,7 +89,7 @@ int main(int argc, char *argv[]) {
 
 }
 struct knnresult smallKNN(double *x, double *y, int n, int m, int d, int k, int indexOffset)
-{ 
+{
     struct knnresult *result = malloc(sizeof(struct knnresult));
 
     double *xx = malloc(n * d * sizeof(double));

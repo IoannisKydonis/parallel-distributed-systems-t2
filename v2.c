@@ -2,10 +2,11 @@
 #include <stdlib.h>
 #include <math.h>  // sqrt, pow
 #include <cblas.h> // cblas_dgemm
-#include "utilities.h"
 #include <mpi.h>
 #include <float.h> //DBL_MAX
 #include <time.h> //rand
+#include "utilities.h"
+#include "types.h"
 
 vpNode *createVPTree(double *array, double *x, int n, int d, int *indexValues, vpNode *parent, int *offsets);
 
@@ -27,7 +28,7 @@ int main(int argc, char *argv[]) {
     int upper=10000;
     int lower=-10000;
     int normal=100;
-    
+
     double * random = (double *)malloc(natoi * datoi *sizeof(double));
     for(int i=0; i< natoi*datoi; i++ ){
         random[i]=(double)((rand()%(upper-lower+1))+lower)/normal;
@@ -260,7 +261,7 @@ knnresult distrAllkNN(double * x, int n, int d , int k){
         free(mergedOffsets);
 
     }
-    
+
 
     return mergedResult;
 
