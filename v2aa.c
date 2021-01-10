@@ -21,6 +21,7 @@ vpNode *createVPTree(double *array, double *x, int n, int d, int *indexValues, v
     root->mu = median;
     root->vpIdx = indexValues[0];
     root->vp = (double *) malloc(d * sizeof(double));
+//    printf("First element: %2d, off=%2d, final=%2d\n", indexValues[0], offsets[0], indexValues[0] - offsets[0]);
     for (int j = 0; j < d; j++)
         root->vp[j] = x[j]; // TODO: verify correctness
 
@@ -197,11 +198,9 @@ int main(int argc, char *argv[]) {
 
     int elements = totalPoints[SelfTID];
     int *indexValues = (int *) malloc(elements * sizeof(int));
-    for (int i = 0; i < elements; i++) {
-        indexValues[i] = i + offset;
-    }
     int *offsets = (int *) malloc(elements * sizeof(int));
     for (int i = 0; i < elements; i++) {
+        indexValues[i] = i + offset;
         offsets[i] = offset;
     }
 
@@ -246,20 +245,22 @@ int main(int argc, char *argv[]) {
         off = findIndexOffset(SelfTID, i, NumTasks, totalPoints);
         int elements2 = totalPoints[receivedArrayIndex];
         int *indexValues2 = (int *) malloc((elements + elements2) * sizeof(int));
-        for (int ii = 0; ii < elements; ii++) {
-            indexValues2[ii] = ii + offset;
-        }
-        for (int ii = 0; ii < elements2; ii++) {
-            indexValues2[elements + ii] = ii + off;
-        }
-
         int *offsets2 = (int *) malloc((elements + elements2) * sizeof(int));
         for (int ii = 0; ii < elements; ii++) {
+            indexValues2[ii] = ii + offset;
             offsets2[ii] = offset;
         }
         for (int ii = 0; ii < elements2; ii++) {
-            offsets2[elements + ii] = off;
+            indexValues2[elements + ii] = ii + off;
+            offsets2[elements + ii] = off - elements;
         }
+
+//        if (SelfTID == 0) {
+//            for (int ii = 0; ii < elements + elements2; ii++) {
+//                printf("index=%d, offset=%d, final=%d\n", indexValues2[ii], offsets2[ii], indexValues2[ii] - offsets2[ii]);
+//            }
+//            printf("\n");
+//        }
 
         double *merged = mergeArrays(X, Y, sentElements, receivedElements);
         root = createVPTree(merged, merged, elements + elements2, d, indexValues2, NULL, offsets2);
