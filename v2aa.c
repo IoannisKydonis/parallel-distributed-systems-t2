@@ -219,7 +219,7 @@ int main(int argc, char *argv[]) {
     result->k = k;
     result->m = elements;
     for (int ii = 0; ii < result->m * k; ii++) {
-        result->ndist[ii] = DBL_MAX;
+        result->ndist[ii] = INFINITY;
         result->nidx[ii] = -1;
     }
 
@@ -266,7 +266,7 @@ int main(int argc, char *argv[]) {
         res->k = k;
         res->m = elements;
         for (int ii = 0; ii < elements * k; ii++) {
-            res->ndist[ii] = DBL_MAX;
+            res->ndist[ii] = INFINITY;
             res->nidx[ii] = -1;
         }
 

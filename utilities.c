@@ -177,7 +177,7 @@ struct knnresult smallKNN(double *x, double *y, int n, int m, int d, int k, int 
     int * indexesRowMajor=(int*)malloc(n*k*sizeof(int));
     double * distRowMajor=(double*)malloc(n*k*sizeof(double));
     for (int i = 0; i < n * k; i++) {
-        distRowMajor[i] = DBL_MAX;
+        distRowMajor[i] = INFINITY;
         indexesRowMajor[i] = -1;
     }
     for (int i = 0; i < n; i++)
