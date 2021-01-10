@@ -37,10 +37,6 @@ double findDistance (double * point1, double * point2, int d);
 
 double findMedian(double *distances, int *indexValues, int *offsets, int n, int *idx);
 
-void printNode(vpNode * node,int d);
-
-void printTree (vpNode * root,int d);
-
 double *mergeArrays(double *arr1, double *arr2, int len1, int len2);
 
 void initializeResult( knnresult *result, int elements, int k);

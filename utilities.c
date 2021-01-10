@@ -7,7 +7,7 @@
 #include "types.h"
 
 void *serializeKnnResult(knnresult res) {
-    char *serialized = (char *)malloc(res.m * res.k * 27 + res.m + 1);
+    char *serialized = (char *) malloc(res.m * res.k * 27 + res.m + 1);
     int ind = 0;
     for (int i = 0; i < res.m * res.k; i++) {
         if (i % res.k == 0 && i != 0)
@@ -17,43 +17,33 @@ void *serializeKnnResult(knnresult res) {
     ind += sprintf(serialized + ind, "\n");
 
     *(serialized + ind) = '\0';
-    return (void *)serialized;
+    return (void *) serialized;
 }
 
-void hadamardProduct(double *x, double *y, double *res, int length)
-{
+void hadamardProduct(double *x, double *y, double *res, int length) {
     for (int i = 0; i < length; i++)
         res[i] = x[i] * y[i];
 }
 
 // k is one based
-double kNearest(double *dist, int *indexValues, int left, int right, int k, int *idx)
-{
+double kNearest(double *dist, int *indexValues, int left, int right, int k, int *idx) {
     int pivot = partition(dist, indexValues, left, right);
 
-    if (k < pivot - left + 1)
-    {
+    if (k < pivot - left + 1) {
         return kNearest(dist, indexValues, left, pivot - 1, k, idx);
-    }
-    else if (k > pivot - left + 1)
-    {
+    } else if (k > pivot - left + 1) {
         return kNearest(dist, indexValues, pivot + 1, right, k - pivot + left - 1, idx);
-    }
-    else
-    {
+    } else {
         *idx = indexValues[pivot];
         return dist[pivot];
     }
 }
 
-int partition(double *dist, int *indexValues, int left, int right)
-{
+int partition(double *dist, int *indexValues, int left, int right) {
     double x = dist[right];
     int i = left;
-    for (int j = left; j <= right - 1; j++)
-    {
-        if (dist[j] <= x)
-        {
+    for (int j = left; j <= right - 1; j++) {
+        if (dist[j] <= x) {
             swap(&dist[i], &dist[j]);
             swapInts(&indexValues[i], &indexValues[j]);
             i++;
@@ -64,33 +54,25 @@ int partition(double *dist, int *indexValues, int left, int right)
     return i;
 }
 
-double kNearestWithOffsets(double *dist, int *indexValues, int *offsets, int left, int right, int k, int *idx)
-{
+// k is one based
+double kNearestWithOffsets(double *dist, int *indexValues, int *offsets, int left, int right, int k, int *idx) {
     int pivot = partitionWithOffsets(dist, indexValues, offsets, left, right);
 
-    if (k < pivot - left + 1)
-    {
+    if (k < pivot - left + 1) {
         return kNearestWithOffsets(dist, indexValues, offsets, left, pivot - 1, k, idx);
-    }
-    else if (k > pivot - left + 1)
-    {
+    } else if (k > pivot - left + 1) {
         return kNearestWithOffsets(dist, indexValues, offsets, pivot + 1, right, k - pivot + left - 1, idx);
-    }
-    else
-    {
+    } else {
         *idx = indexValues[pivot];
         return dist[pivot];
     }
 }
 
-int partitionWithOffsets(double *dist, int *indexValues, int *offsets, int left, int right)
-{
+int partitionWithOffsets(double *dist, int *indexValues, int *offsets, int left, int right) {
     double x = dist[right];
     int i = left;
-    for (int j = left; j <= right - 1; j++)
-    {
-        if (dist[j] <= x)
-        {
+    for (int j = left; j <= right - 1; j++) {
+        if (dist[j] <= x) {
             swap(&dist[i], &dist[j]);
             swapInts(&indexValues[i], &indexValues[j]);
             swapInts(&offsets[i], &offsets[j]);
@@ -103,119 +85,112 @@ int partitionWithOffsets(double *dist, int *indexValues, int *offsets, int left,
     return i;
 }
 
-void swap(double *n1, double *n2)
-{
+void swap(double *n1, double *n2) {
     double temp = *n1;
     *n1 = *n2;
     *n2 = temp;
 }
 
-void swapInts(int *n1, int *n2)
-{
+void swapInts(int *n1, int *n2) {
     int temp = *n1;
     *n1 = *n2;
     *n2 = temp;
 }
 
 void printResult(knnresult result) {
-    for(int i=0; i<result.m * result.k; i++){
-        if (i % result.k == 0) {
+    for (int i = 0; i < result.m * result.k; i++) {
+        if (i % result.k == 0)
             printf("\n");
-        }
         printf("%16.8f(%08d) ", result.ndist[i], result.nidx[i]);
     }
     printf("\n");
 }
 
+void dividePoints(int n, int tasks, int *array) {
+    int points = n / tasks;
+    for (int i = 0; i < n; i++) {
+        array[i] = points;
+    }
 
-
-void dividePoints(int n, int tasks, int * array){
-   int points=n/tasks;
-   for(int i=0; i<n; i++){
-        array[i]=points;
-   }
-
-   int pointsLeft=n%tasks;
-   for(int i=0; pointsLeft>0; i++){
+    int pointsLeft = n % tasks;
+    for (int i = 0; pointsLeft > 0; i++) {
         array[i]++;
         pointsLeft--;
-   }
-}
-
-int findDestination(int id, int NumTasks){
-    if (id==NumTasks-1)
-    return 0;
-    else
-    return (id+1);
-}
-
-int findSender(int id, int NumTasks){
-    if(id==0)
-    return (NumTasks-1);
-    else
-    return (id-1);
-}
-
-struct knnresult updateKNN(struct knnresult oldResult, struct knnresult newResult ){
-   struct knnresult *result = malloc(sizeof(struct knnresult));
-   
-   int k,kmin;
-   int m=oldResult.m; //==newResult.m
-   if(oldResult.k>newResult.k){
-    k=oldResult.k;
-    kmin=newResult.k;
     }
-   else{
-    k=newResult.k;
-    kmin=oldResult.k;
-   }
+}
 
-   double * newNearest = malloc(m * k* sizeof(double));
-   int * newIndexes = malloc(m * k * sizeof(int));
+int findDestination(int id, int NumTasks) {
+    if (id == NumTasks - 1)
+        return 0;
+    else
+        return (id + 1);
+}
 
-   for(int i=0; i< m ; i++){
-       int it1,it2; //iterator for old and new result.ndist
-       it1=it2=i*k;
-       for(int j =0; j<k ; j++){
-           if(newResult.ndist[it1]<=oldResult.ndist[it2]){
-               newNearest[i*k+j]=newResult.ndist[it1];
-               newIndexes[i*k+j]=newResult.nidx[it1];
-               if (newResult.nidx[it1] == oldResult.nidx[it2])
-                   it2++;
-               it1++;
-           }
-           else {
-               newNearest[i*k+j]=oldResult.ndist[it2];
-               newIndexes[i*k+j]=oldResult.nidx[it2];
-               if (newResult.nidx[it1] == oldResult.nidx[it2])
-                   it1++;
-               it2++;
-           }
+int findSender(int id, int NumTasks) {
+    if (id == 0)
+        return (NumTasks - 1);
+    else
+        return (id - 1);
+}
+
+struct knnresult updateKNN(struct knnresult oldResult, struct knnresult newResult) {
+    struct knnresult *result = malloc(sizeof(struct knnresult));
+
+    int k, kmin;
+    int m = oldResult.m; //==newResult.m
+    if (oldResult.k > newResult.k) {
+        k = oldResult.k;
+        kmin = newResult.k;
+    } else {
+        k = newResult.k;
+        kmin = oldResult.k;
+    }
+
+    double *newNearest = malloc(m * k * sizeof(double));
+    int *newIndexes = malloc(m * k * sizeof(int));
+
+    for (int i = 0; i < m; i++) {
+        int it1, it2; //iterator for old and new result.ndist
+        it1 = it2 = i * k;
+        for (int j = 0; j < k; j++) {
+            if (newResult.ndist[it1] <= oldResult.ndist[it2]) {
+                newNearest[i * k + j] = newResult.ndist[it1];
+                newIndexes[i * k + j] = newResult.nidx[it1];
+                if (newResult.nidx[it1] == oldResult.nidx[it2])
+                    it2++;
+                it1++;
+            } else {
+                newNearest[i * k + j] = oldResult.ndist[it2];
+                newIndexes[i * k + j] = oldResult.nidx[it2];
+                if (newResult.nidx[it1] == oldResult.nidx[it2])
+                    it1++;
+                it2++;
+            }
         }
     }
 
-    result->ndist=newNearest; 
-    result->nidx=newIndexes;
-    result->m=oldResult.m;
-    result->k=oldResult.k;
-    return * result;
+    result->ndist = newNearest;
+    result->nidx = newIndexes;
+    result->m = oldResult.m;
+    result->k = oldResult.k;
+    return *result;
 
 }
 
-int findBlockArrayIndex(int id, int iteration, int NumTasks){ //iteration >=1
-int Y=id-iteration;
-if(Y<0)
-Y+=NumTasks;
-return Y;
+int findBlockArrayIndex(int id, int iteration, int NumTasks) { //iteration >=1
+    int Y = id - iteration;
+    if (Y < 0)
+        Y += NumTasks;
+    return Y;
 }
 
-int findIndexOffset(int id, int iteration, int NumTasks, int * totalPoints){ //total points is the number of the points before 
-int Y=findBlockArrayIndex(id, iteration, NumTasks);
-int result=0;
-for(int i=0;i<Y;i++)
-result+=totalPoints[i];
+int findIndexOffset(int id, int iteration, int NumTasks, int *totalPoints) { //total points is the number of the points before
+    int Y = findBlockArrayIndex(id, iteration, NumTasks);
+    int result = 0;
+    for (int i = 0; i < Y; i++)
+        result += totalPoints[i];
 
-return result;
+    return result;
 }
 
 
@@ -236,24 +211,6 @@ double findMedian(double *distances, int *indexValues, int *offsets, int n, int 
     }
 }
 
-void printNode(vpNode *node, int d) {
-    printf("**NODE**\n");
-    printf("mu is %f\n", node->mu);
-    printf("Index is %d\n", node->vpIdx);
-    printf("Cords: ");
-    for (int i = 0; i < d; i++)
-        printf("%f ", node->vp[i]);
-    printf("\n\n");
-}
-
-int isPresent(int *nidx, int target, int k) {
-    for (int i = 0; i < k; i++) {
-        if (nidx[i] == target)
-            return 1;
-    }
-    return 0;
-}
-
 void insertValueToResult(knnresult *result, double value, int idx, int position, int offset) {
     for (int j = offset + result->k - 1; j > position; j--) {
         result->ndist[j] = result->ndist[j - 1];
@@ -263,21 +220,8 @@ void insertValueToResult(knnresult *result, double value, int idx, int position,
     result->nidx[position] = idx;
 }
 
-
-void printTree(vpNode *root, int d) {
-    printNode(root, d);
-
-    printf("Left Point of %d: \n", root->vpIdx);
-    if (root->left != NULL)
-        printTree(root->left, d);
-
-    printf("Right Point of %d: \n", root->vpIdx);
-    if (root->right != NULL)
-        printTree(root->right, d);
-}
-
 double *mergeArrays(double *arr1, double *arr2, int len1, int len2) {
-    double *merged = (double *)malloc((len1 + len2) * sizeof(double));
+    double *merged = (double *) malloc((len1 + len2) * sizeof(double));
     for (int i = 0; i < len1; i++)
         merged[i] = arr1[i];
     for (int i = 0; i < len2; i++)
@@ -285,9 +229,9 @@ double *mergeArrays(double *arr1, double *arr2, int len1, int len2) {
     return merged;
 }
 
-void initializeResult( knnresult *result, int elements, int k){
-    result->ndist = (double *)malloc(elements * k * sizeof(double));
-    result->nidx = (int *)malloc(elements * k * sizeof(int));
+void initializeResult(knnresult *result, int elements, int k) {
+    result->ndist = (double *) malloc(elements * k * sizeof(double));
+    result->nidx = (int *) malloc(elements * k * sizeof(int));
     result->k = k;
     result->m = elements;
     for (int ii = 0; ii < result->m * k; ii++) {
