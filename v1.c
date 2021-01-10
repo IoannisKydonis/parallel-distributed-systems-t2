@@ -7,11 +7,14 @@
 
 struct knnresult smallKNN(double *x, double *y, int n, int m, int d, int k, int indexOffset);
 
+knnresult distrAllkNN(double * x,  int n, int d, int k);
+
+
 int main(int argc, char *argv[]) {
     
-   int n;
-   int d; //= atoi(argv[1]);
-   int k;
+    int n;
+    int d; //= atoi(argv[1]);
+    int k;
     double x[30] = {
             1.0, 2.0,
             0.5, 1.2,
@@ -28,54 +31,19 @@ int main(int argc, char *argv[]) {
             15, 7.2,
             -4.0, 1.1,
             8.4, -31.3};
-   d=2;
-   k=3;
-   n=15;
+    d=2;
+    k=5;
+    n=15;
 
-   int SelfTID, NumTasks;
-   MPI_Status mpistat;
-   MPI_Request mpireq;  //initialize MPI environment
-   MPI_Init( &argc, &argv );
-   MPI_Comm_size( MPI_COMM_WORLD, &NumTasks );
-   MPI_Comm_rank( MPI_COMM_WORLD, &SelfTID );
+    int SelfTID, NumTasks;
+    MPI_Status mpistat;
+    MPI_Request mpireq;  //initialize MPI environment
+    MPI_Init( &argc, &argv );
+    MPI_Comm_size( MPI_COMM_WORLD, &NumTasks );
+    MPI_Comm_rank( MPI_COMM_WORLD, &SelfTID );
 
-   int * totalPoints=(int *)malloc(n*sizeof(int));
-   dividePoints(n , NumTasks, totalPoints);
-   int points=totalPoints[SelfTID];
-   int offset=0;
-
-   double * X=(double *)malloc(points*d*sizeof(double));
-   for(int i=0; i<SelfTID; i++){
-   offset+=totalPoints[i];
-   }
-   X=x+offset*d;
-
-   int sentElements=totalPoints[SelfTID]*d;
-   MPI_Isend(X,sentElements,MPI_DOUBLE,findDestination(SelfTID, NumTasks),55,MPI_COMM_WORLD, &mpireq);  //send self block
-
-   int sender=findSender(SelfTID, NumTasks);
-   int receivedArrayIndex,receivedElements; //initialize variables for use in loop
-   int loopOffset;
-
-   struct knnresult result,previousResult,newResult,mergedResult;
-   result=smallKNN(X,X,points,points,d,k,offset);
-   previousResult=result;
-   mergedResult=result;
-
-   for (int i=1; i<NumTasks; i++){  //ring communication
-
-   receivedArrayIndex=findBlockArrayIndex(SelfTID, i, NumTasks);
-   receivedElements=totalPoints[receivedArrayIndex] * d;
-   double * Y= malloc(receivedElements * sizeof(double));
-
-   MPI_Recv(Y,receivedElements,MPI_DOUBLE,sender,55,MPI_COMM_WORLD,&mpistat); //receive from previous process
-   MPI_Isend(Y,receivedElements,MPI_DOUBLE,findDestination(SelfTID, NumTasks),55,MPI_COMM_WORLD, &mpireq); //send the received array to next process
-
-   loopOffset=findIndexOffset(SelfTID,i,NumTasks,totalPoints);
-   newResult=smallKNN(X,Y,points,totalPoints[receivedArrayIndex],d,k,loopOffset);
-   mergedResult=updateKNN(newResult,previousResult);
-   previousResult=mergedResult;
-   }
+    knnresult mergedResult;
+    mergedResult=distrAllkNN(x,n,d,k);
 
     if (SelfTID == 0) {    //send every result to the first process for printing
         printResult(mergedResult);
@@ -89,12 +57,12 @@ int main(int argc, char *argv[]) {
         MPI_Isend(serializeKnnResult(mergedResult), n * k * 27 + n + 1, MPI_CHAR, 0, 0, MPI_COMM_WORLD, &mpireq);
     }
 
-   MPI_Finalize();
-   return(0);
+    MPI_Finalize();
+    return(0);
+
+
+
 }
-
-
-
 struct knnresult smallKNN(double *x, double *y, int n, int m, int d, int k, int indexOffset)
 { 
     struct knnresult *result = malloc(sizeof(struct knnresult));
@@ -167,4 +135,53 @@ struct knnresult smallKNN(double *x, double *y, int n, int m, int d, int k, int 
     free(xxSum);
     free(yySum);
     return *result;
+}
+
+knnresult distrAllkNN(double * x , int n, int d, int k){
+
+   int SelfTID, NumTasks;
+   MPI_Status mpistat;
+   MPI_Request mpireq;  //initialize MPI environment
+   MPI_Comm_size( MPI_COMM_WORLD, &NumTasks );
+   MPI_Comm_rank( MPI_COMM_WORLD, &SelfTID );
+
+   int * totalPoints=(int *)malloc(n*sizeof(int));
+   dividePoints(n , NumTasks, totalPoints);
+   int points=totalPoints[SelfTID];
+   int offset=0;
+
+   double * X=(double *)malloc(points*d*sizeof(double));
+   for(int i=0; i<SelfTID; i++){
+   offset+=totalPoints[i];
+   }
+   X=x+offset*d;
+
+   int sentElements=totalPoints[SelfTID]*d;
+   MPI_Isend(X,sentElements,MPI_DOUBLE,findDestination(SelfTID, NumTasks),55,MPI_COMM_WORLD, &mpireq);  //send self block
+
+   int sender=findSender(SelfTID, NumTasks);
+   int receivedArrayIndex,receivedElements; //initialize variables for use in loop
+   int loopOffset;
+
+   struct knnresult result,previousResult,newResult,mergedResult;
+   result=smallKNN(X,X,points,points,d,k,offset);
+   previousResult=result;
+   mergedResult=result;
+
+   for (int i=1; i<NumTasks; i++){  //ring communication
+
+   receivedArrayIndex=findBlockArrayIndex(SelfTID, i, NumTasks);
+   receivedElements=totalPoints[receivedArrayIndex] * d;
+   double * Y= malloc(receivedElements * sizeof(double));
+
+   MPI_Recv(Y,receivedElements,MPI_DOUBLE,sender,55,MPI_COMM_WORLD,&mpistat); //receive from previous process
+   MPI_Isend(Y,receivedElements,MPI_DOUBLE,findDestination(SelfTID, NumTasks),55,MPI_COMM_WORLD, &mpireq); //send the received array to next process
+
+   loopOffset=findIndexOffset(SelfTID,i,NumTasks,totalPoints);
+   newResult=smallKNN(X,Y,points,totalPoints[receivedArrayIndex],d,k,loopOffset);
+   mergedResult=updateKNN(newResult,previousResult);
+   previousResult=mergedResult;
+   }
+
+    return mergedResult;
 }
