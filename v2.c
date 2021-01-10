@@ -7,6 +7,7 @@
 #include <time.h> //rand
 #include "utilities.h"
 #include "types.h"
+#include "controller.h"
 
 vpNode *createVPTree(double *array, double *x, int n, int d, int *indexValues, vpNode *parent, int *offsets);
 
@@ -64,8 +65,10 @@ int main(int argc, char *argv[]) {
     k = 6;
     n = 30/d;
 
-    knnresult mergedResult;
-    mergedResult=distrAllkNN(x,n,d,k);
+    char *filename = (char *)malloc(16 * sizeof(char));
+    sprintf(filename, "v2_out_%04d.txt\0", SelfTID);
+    knnresult mergedResult = runAndPresentResult(distrAllkNN, x, n, d, k, "v2", "v2_out.txt", filename);
+    free(filename);
 
     if (SelfTID == 0) {    //send every result to the first process for printing
         printResult(mergedResult);

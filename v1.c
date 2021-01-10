@@ -63,11 +63,9 @@ int main(int argc, char *argv[]) {
     n=30/d;
     k=6;
 
-    knnresult mergedResult;
-//    mergedResult=distrAllkNN(x,n,d,k);
     char *filename = (char *)malloc(16 * sizeof(char));
     sprintf(filename, "v1_out_%04d.txt\0", SelfTID);
-    mergedResult = runAndPresentResult(distrAllkNN, x, n, d, k, "v1", "v1_out.txt", filename);
+    knnresult mergedResult = runAndPresentResult(distrAllkNN, x, n, d, k, "v1", "v1_out.txt", filename);
     free(filename);
 
     if (SelfTID == 0) {    //send every result to the first process for printing
