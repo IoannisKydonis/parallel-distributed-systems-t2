@@ -64,25 +64,40 @@ int main(int argc, char *argv[]) {
 
     char *filename = (char *) malloc(16 * sizeof(char));
     sprintf(filename, "v1_res_%04d.txt", SelfTID);
-    knnresult mergedResult = runAndPresentResult(distrAllkNN, x, n, d, k, "v1", "v1_out.txt", filename);
+    knnresult mergedResult = runAndPresentResult(distrAllkNN, random, natoi, datoi, katoi, "v1", "v1_out.txt", filename);
     free(filename);
 
     if (SelfTID == 0) {    //send every result to the first process for printing
-        printResult(mergedResult);
-        for (int i = 1; i < NumTasks; i++) {
-            char *deserialized = malloc(n * k * 27 + n + 1);
-            MPI_Recv(deserialized, n * k * 27 + n + 1, MPI_CHAR, i, 0, MPI_COMM_WORLD, &mpistat);
-            printf("%s", deserialized);
-            free(deserialized);
+        FILE *f = fopen("v1_out.txt", "wb");
+        for (int i = 0; i < mergedResult.m * mergedResult.k; i++) {
+            if (i % mergedResult.k == 0)
+                fprintf(f, "\n");
+            fprintf(f, "%16.4f(%08d) ", mergedResult.ndist[i], mergedResult.nidx[i]);
         }
+        for (int i = 1; i < NumTasks; i++) {
+            double *incomingDistances = malloc(mergedResult.m * mergedResult.k * sizeof(double));
+            int *incomingIndexes = malloc(mergedResult.m * mergedResult.k * sizeof(int));
+            MPI_Recv(incomingDistances, mergedResult.m * mergedResult.k, MPI_DOUBLE, i, 0, MPI_COMM_WORLD, &mpistat);
+            MPI_Recv(incomingIndexes, mergedResult.m * mergedResult.k, MPI_INTEGER, i, 0, MPI_COMM_WORLD, &mpistat);
+            int incomingLength;
+            MPI_Get_count(&mpistat, MPI_INTEGER, &incomingLength);
+            for (int i = 0; i < incomingLength; i++) {
+                if (i % mergedResult.k == 0)
+                    fprintf(f, "\n");
+                fprintf(f, "%16.4f(%08d) ", incomingDistances[i], incomingIndexes[i]);
+            }
+            free(incomingDistances);
+            free(incomingIndexes);
+        }
+        fprintf(f, "\n");
+        fclose(f);
     } else {
-        MPI_Isend(serializeKnnResult(mergedResult), n * k * 27 + n + 1, MPI_CHAR, 0, 0, MPI_COMM_WORLD, &mpireq);
+        MPI_Send(mergedResult.ndist, mergedResult.m * mergedResult.k, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+        MPI_Isend(mergedResult.nidx, mergedResult.m * mergedResult.k, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, &mpireq);
     }
 
     MPI_Finalize();
-    return (0);
-
-
+    return 0;
 }
 
 knnresult distrAllkNN(double *x, int n, int d, int k) {

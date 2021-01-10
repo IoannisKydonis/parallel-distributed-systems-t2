@@ -3,8 +3,6 @@
 #ifndef UTILITIES_H
 #define UTILITIES_H
 
-void *serializeKnnResult(knnresult res);
-
 void hadamardProduct(double *x, double *y, double *res, int length);
 
 double kNearest(double *dist, int *indexValues, int l, int r, int k, int *idx);
@@ -42,6 +40,5 @@ double *mergeArrays(double *arr1, double *arr2, int len1, int len2);
 void initializeResult( knnresult *result, int elements, int k);
 
 void insertValueToResult(knnresult *result, double value, int idx, int position, int offset);
-
 
 #endif //UTILITIES_H

@@ -6,20 +6,6 @@
 #include "utilities.h"
 #include "types.h"
 
-void *serializeKnnResult(knnresult res) {
-    char *serialized = (char *) malloc(res.m * res.k * 27 + res.m + 1);
-    int ind = 0;
-    for (int i = 0; i < res.m * res.k; i++) {
-        if (i % res.k == 0 && i != 0)
-            ind += sprintf(serialized + ind, "\n");
-        ind += sprintf(serialized + ind, "%16.4lf(%08d) ", res.ndist[i], res.nidx[i]);
-    }
-    ind += sprintf(serialized + ind, "\n");
-
-    *(serialized + ind) = '\0';
-    return (void *) serialized;
-}
-
 void hadamardProduct(double *x, double *y, double *res, int length) {
     for (int i = 0; i < length; i++)
         res[i] = x[i] * y[i];
