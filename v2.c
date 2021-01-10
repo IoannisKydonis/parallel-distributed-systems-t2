@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
     n = 30/d;
 
     char *filename = (char *)malloc(16 * sizeof(char));
-    sprintf(filename, "v2_out_%04d.txt\0", SelfTID);
+    sprintf(filename, "v2_res_%04d.txt\0", SelfTID);
     knnresult mergedResult = runAndPresentResult(distrAllkNN, x, n, d, k, "v2", "v2_out.txt", filename);
     free(filename);
 
