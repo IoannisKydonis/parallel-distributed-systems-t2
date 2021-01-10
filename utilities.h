@@ -43,8 +43,6 @@ void printTree (vpNode * root,int d);
 
 double *mergeArrays(double *arr1, double *arr2, int len1, int len2);
 
-int *mergeIntArrays(int *arr1, int *arr2, int len1, int len2);
-
 void initializeResult( knnresult *result, int elements, int k);
 
 void insertValueToResult(knnresult *result, double value, int idx, int position, int offset);

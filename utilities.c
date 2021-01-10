@@ -285,15 +285,6 @@ double *mergeArrays(double *arr1, double *arr2, int len1, int len2) {
     return merged;
 }
 
-int *mergeIntArrays(int *arr1, int *arr2, int len1, int len2) {
-    int *merged = (int *)malloc((len1 + len2) * sizeof(int));
-    for (int i = 0; i < len1; i++)
-        merged[i] = arr1[i];
-    for (int i = 0; i < len2; i++)
-        merged[len1 + i] = arr2[i];
-    return merged;
-}
-
 void initializeResult( knnresult *result, int elements, int k){
     result->ndist = (double *)malloc(elements * k * sizeof(double));
     result->nidx = (int *)malloc(elements * k * sizeof(int));
