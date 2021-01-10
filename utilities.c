@@ -12,7 +12,7 @@ void *serializeKnnResult(knnresult res) {
     for (int i = 0; i < res.m * res.k; i++) {
         if (i % res.k == 0 && i != 0)
             ind += sprintf(serialized + ind, "\n");
-        ind += sprintf(serialized + ind, "%16.8lf(%08d) ", res.ndist[i], res.nidx[i]);
+        ind += sprintf(serialized + ind, "%16.4lf(%08d) ", res.ndist[i], res.nidx[i]);
     }
     ind += sprintf(serialized + ind, "\n");
 
@@ -101,7 +101,7 @@ void printResult(knnresult result) {
     for (int i = 0; i < result.m * result.k; i++) {
         if (i % result.k == 0)
             printf("\n");
-        printf("%16.8f(%08d) ", result.ndist[i], result.nidx[i]);
+        printf("%16.4f(%08d) ", result.ndist[i], result.nidx[i]);
     }
     printf("\n");
 }
