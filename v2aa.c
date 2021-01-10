@@ -51,15 +51,13 @@ vpNode *createVPTree(double *array, double *x, int n, int d, int *indexValues, v
             leftIndexes[leftSize - 1] = indexValues[i];
         }
     }
+    root->left = NULL;
+    root->right = NULL;
 
     if (leftSize > 0)
         root->left = createVPTree(array, leftElements, leftSize, d, leftIndexes, root, offsets);
-    else
-        root->left = NULL;
     if (rightSize > 0)
         root->right = createVPTree(array, rightElements, rightSize, d, rightIndexes, root, offsets);
-    else
-        root->right = NULL;
 
     return root;
 }
