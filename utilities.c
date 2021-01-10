@@ -69,11 +69,11 @@ double kNearestWithOffsets(double *dist, int *indexValues, int *offsets, int lef
 
     if (k < pivot - left + 1)
     {
-        return kNearest(dist, indexValues, left, pivot - 1, k, idx);
+        return kNearestWithOffsets(dist, indexValues, offsets, left, pivot - 1, k, idx);
     }
     else if (k > pivot - left + 1)
     {
-        return kNearest(dist, indexValues, pivot + 1, right, k - pivot + left - 1, idx);
+        return kNearestWithOffsets(dist, indexValues, offsets, pivot + 1, right, k - pivot + left - 1, idx);
     }
     else
     {
