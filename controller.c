@@ -27,6 +27,7 @@ knnresult runAndPresentResult(knnresult (*runnable)(double *x, int n, int d, int
     printf("| Algorithm: %s\n", name);
     printf("| Time: %10.6lf\n", time);
     printf("| Input filename: %s\n", inputName);
+    printf("| Process ID: %d\n", SelfTID);
     printf("| n=%d, d=%d, k=%d\n", n, d, k);
     printf("-----------------------------------\n");
 
