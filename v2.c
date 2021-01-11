@@ -153,9 +153,6 @@ knnresult distrAllkNN(double *x, int n, int d, int k) {
         mergedResult = updateKNN(*newResult, previousResult);  //update neighbors
         previousResult = mergedResult;
 
-        free(Y);
-        free(mergedIndexes);
-        free(mergedOffsets);
     }
 
     return mergedResult;
