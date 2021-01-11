@@ -27,13 +27,13 @@ int main(int argc, char *argv[]) {
 
     double * X=read_X(&n,&d,argv[1]);
 
-    char *resFilename = (char *) malloc((30 + strlen(argv[1])) * sizeof(char));
+    char *resFilename = (char *) malloc((40 + strlen(argv[1])) * sizeof(char));
     sprintf(resFilename, "v1_res_%s_%07d_%04d_%04d_%04d.txt", argv[1], n, d, k, NumTasks);
     knnresult mergedResult = runAndPresentResult(distrAllkNN, X, n, d, k, argv[1], "v1", resFilename);
     free(resFilename);
 
     if (SelfTID == 0) {    //send every result to the first process for printing
-        char *outFilename = (char *) malloc((30 + strlen(argv[1])) * sizeof(char));
+        char *outFilename = (char *) malloc((40 + strlen(argv[1])) * sizeof(char));
         sprintf(outFilename, "v1_out_%s_%07d_%04d_%04d_%04d.txt", argv[1], n, d, k, NumTasks);
         FILE *f = fopen(outFilename, "wb");
         for (int i = 0; i < mergedResult.m * mergedResult.k; i++) {
