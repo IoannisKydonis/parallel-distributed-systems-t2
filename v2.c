@@ -3,11 +3,10 @@
 #include <math.h>  // sqrt, pow
 #include <cblas.h> // cblas_dgemm
 #include <mpi.h>
-#include <float.h> //DBL_MAX
-#include <time.h> //rand
 #include "utilities.h"
 #include "types.h"
 #include "controller.h"
+#include "read.h"
 
 knnresult distrAllkNN(double *x, int n, int d, int k);
 
@@ -23,63 +22,11 @@ int main(int argc, char *argv[]) {
     MPI_Comm_size(MPI_COMM_WORLD, &NumTasks);
     MPI_Comm_rank(MPI_COMM_WORLD, &SelfTID);
 
-    int n = atoi(argv[2]);
-    int d = atoi(argv[3]);
-    int k = atoi(argv[4]);
-    double * X=(double *)malloc(n * d * sizeof(double));
-    int numbered=1; //1 for asc, 2 for 1:123 2:22324, 3 else
-        printf("n is %d, d is %d, k is %d\n",n,d,k);
+    int n;
+    int d;
+    int k=atoi(argv[2]);
 
-
-FILE *matFile=fopen(argv[1],"r");
-		if (matFile == NULL)
-		{
-			printf("Couldn't open file\n");
-			exit(1);
-		}
-		double num,temp;
-		int i=0,j=0;
-		if(numbered==1){
-			while ( fscanf(matFile,"%lf",&num) !=EOF )
-			{
-				if(i%(d+1)!=0){
-					X[j]=num;
-					j++;
-				}
-				i++;
-			}
-		}else if(numbered==2){
-			for(i=0; i<n; i++){
-				fscanf(matFile,"%lf",&num);
-				for(j=0; j<d; j++){
-					if(fscanf(matFile," %lf:%lf",&temp,&num)==EOF) break;
-					X[i*d+j]=num;
-        		}
-				fscanf(matFile,"%*[^\n]\n");
-			}
-		}else{
-			for(int skip=0;skip<4;skip++){
-				fscanf(matFile,"%*[^\n]\n");
-			}
-			for(i=0; i<n; i++){
-				fscanf(matFile,"%lf",&num);
-				for(j=0; j<d; j++){
-					if(fscanf(matFile,",%lf",&num)==EOF) break;
-					X[i*d+j]=num;
-        		}
-				fscanf(matFile,"%*[^\n]\n");
-			}
-		}
-	fclose(matFile);
-
-    printf("Exited read\n");
-    // if(SelfTID==0)
-    // for(int i=0; i < 32 ; i++){
-    //     printf("%f ",X[i]);
-    // }
-    // printf("Exited print\n");
-     n=10000; //change size for faster execution
-     d=2; //change dimensions for faster execution
+    double * X=read_X(&n,&d,argv[1]);
 
     char *filename = (char *) malloc(16 * sizeof(char));
     sprintf(filename, "v2_res_%04d.txt", SelfTID);
@@ -87,7 +34,7 @@ FILE *matFile=fopen(argv[1],"r");
     free(filename);
 
     if (SelfTID == 0) {    //send every result to the first process for printing
-        FILE *f = fopen("v2_out.txt", "wb");
+        FILE *f = fopen("v2_out.txt", "wb"); 
         for (int i = 0; i < mergedResult.m * mergedResult.k; i++) {
             if (i % mergedResult.k == 0)
                 fprintf(f, "\n");
