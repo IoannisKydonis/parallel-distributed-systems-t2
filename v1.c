@@ -113,7 +113,6 @@ knnresult distrAllkNN(double *x, int n, int d, int k) {
         mergedResult = updateKNN(newResult, previousResult);
         previousResult = mergedResult;
 
-        free(Y);
     }
 
     return mergedResult;
