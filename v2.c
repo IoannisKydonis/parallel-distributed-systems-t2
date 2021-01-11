@@ -3,6 +3,8 @@
 #include <math.h>  // sqrt, pow
 #include <cblas.h> // cblas_dgemm
 #include <mpi.h>
+#include <time.h>
+#include <string.h>
 #include "utilities.h"
 #include "types.h"
 #include "controller.h"
@@ -28,13 +30,15 @@ int main(int argc, char *argv[]) {
 
     double * X=read_X(&n,&d,argv[1]);
 
-    char *filename = (char *) malloc(16 * sizeof(char));
-    sprintf(filename, "v2_res_%04d.txt", SelfTID);
-    knnresult mergedResult = runAndPresentResult(distrAllkNN, X, n, d, k, "v2", "v2_out.txt", filename);
-    free(filename);
+    char *resFilename = (char *) malloc((24 + strlen(argv[1])) * sizeof(char));
+    sprintf(resFilename, "v2_res_%s_%012d.txt", argv[1], (int)time(NULL));
+    knnresult mergedResult = runAndPresentResult(distrAllkNN, X, n, d, k, argv[1], "v2", resFilename);
+    free(resFilename);
 
     if (SelfTID == 0) {    //send every result to the first process for printing
-        FILE *f = fopen("v2_out.txt", "wb"); 
+        char *outFilename = (char *) malloc((24 + strlen(argv[1])) * sizeof(char));
+        sprintf(outFilename, "v2_out_%s_%012d.txt", argv[1], (int)time(NULL));
+        FILE *f = fopen(outFilename, "wb");
         for (int i = 0; i < mergedResult.m * mergedResult.k; i++) {
             if (i % mergedResult.k == 0)
                 fprintf(f, "\n");
@@ -57,6 +61,7 @@ int main(int argc, char *argv[]) {
         }
         fprintf(f, "\n");
         fclose(f);
+        free(outFilename);
     } else {
         MPI_Send(mergedResult.ndist, mergedResult.m * mergedResult.k, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
         MPI_Isend(mergedResult.nidx, mergedResult.m * mergedResult.k, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, &mpireq);
