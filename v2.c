@@ -23,51 +23,67 @@ int main(int argc, char *argv[]) {
     MPI_Comm_size(MPI_COMM_WORLD, &NumTasks);
     MPI_Comm_rank(MPI_COMM_WORLD, &SelfTID);
 
-    int natoi = atoi(argv[1]);
-    int datoi = atoi(argv[2]);
-    int katoi = atoi(argv[3]);
-    int upper = 10000;
-    int lower = -10000;
-    int normal = 100;
-
-    double *random = (double *) malloc(natoi * datoi * sizeof(double));
-    for (int i = 0; i < natoi * datoi; i++) {
-        random[i] = (double) ((rand() % (upper - lower + 1)) + lower) / normal;
-        //printf("%f \n",random[i]);
-    }
+    int n = atoi(argv[2]);
+    int d = atoi(argv[3]);
+    int k = atoi(argv[4]);
+    double * X=(double *)malloc(n * d * sizeof(double));
+    int numbered=1; //1 for asc, 2 for 1:123 2:22324, 3 else
+        printf("n is %d, d is %d, k is %d\n",n,d,k);
 
 
-    int n;
-    int d; //= atoi(argv[1]);
-    int k;
-    double x[30] = {
-            1.0, 2.0,
-            0.5, 1.2,
-            7.9, 4.6,
-            4.0, 0.0,
-            8.4, 1.9,
-            -1.0, 5.0,
-            1.5, 7.2,
-            7.1, 3.9,
-            -45.0, 10.1,
-            28.4, 31.329,
-            0.7, 1.4,
-            -8.4, -1.9,
-            15, 7.2,
-            -4.0, 1.1,
-            8.4, -31.3};
+FILE *matFile=fopen(argv[1],"r");
+		if (matFile == NULL)
+		{
+			printf("Couldn't open file\n");
+			exit(1);
+		}
+		double num,temp;
+		int i=0,j=0;
+		if(numbered==1){
+			while ( fscanf(matFile,"%lf",&num) !=EOF )
+			{
+				if(i%(d+1)!=0){
+					X[j]=num;
+					j++;
+				}
+				i++;
+			}
+		}else if(numbered==2){
+			for(i=0; i<n; i++){
+				fscanf(matFile,"%lf",&num);
+				for(j=0; j<d; j++){
+					if(fscanf(matFile," %lf:%lf",&temp,&num)==EOF) break;
+					X[i*d+j]=num;
+        		}
+				fscanf(matFile,"%*[^\n]\n");
+			}
+		}else{
+			for(int skip=0;skip<4;skip++){
+				fscanf(matFile,"%*[^\n]\n");
+			}
+			for(i=0; i<n; i++){
+				fscanf(matFile,"%lf",&num);
+				for(j=0; j<d; j++){
+					if(fscanf(matFile,",%lf",&num)==EOF) break;
+					X[i*d+j]=num;
+        		}
+				fscanf(matFile,"%*[^\n]\n");
+			}
+		}
+	fclose(matFile);
 
-    // d = datoi;
-    // k = katoi;
-    // n = natoi;
-
-    d = 2;
-    k = 6;
-    n = 30 / d;
+    printf("Exited read\n");
+    // if(SelfTID==0)
+    // for(int i=0; i < 32 ; i++){
+    //     printf("%f ",X[i]);
+    // }
+    // printf("Exited print\n");
+     n=10000; //change size for faster execution
+     d=2; //change dimensions for faster execution
 
     char *filename = (char *) malloc(16 * sizeof(char));
     sprintf(filename, "v2_res_%04d.txt", SelfTID);
-    knnresult mergedResult = runAndPresentResult(distrAllkNN, random, natoi, datoi, katoi, "v2", "v2_out.txt", filename);
+    knnresult mergedResult = runAndPresentResult(distrAllkNN, X, n, d, k, "v2", "v2_out.txt", filename);
     free(filename);
 
     if (SelfTID == 0) {    //send every result to the first process for printing
