@@ -191,11 +191,24 @@ struct knnresult smallKNN(double *x, double *y, int n, int m, int d, int k, int 
         int idx;
         int pivot;
         for (int j = kMin ; j > 0; j--) {
-            distRowMajor[i * k + j-1] = kNearest(dist, indexValues, left , right - 1, j , &idx, &pivot);
+            
+            distRowMajor[i * k + j-1] = kNearestWithPivot(dist, indexValues, left , right - 1, j , &idx, &pivot);
             indexesRowMajor[i * k + j-1] = idx - i * m;
-            //right-=idx+indexOffset;
+            //printf("left is %d, right is %d, pivot is %d, idx is %d\n",left, right,pivot,idx);
+            right=pivot;
         }
     }
+
+    // for (int i = 0; i < n; i++) {
+    //     int left=i*m;
+    //     int right=(i+1)*m;
+    //     int idx;
+    //     int pivot;
+    //     for (int j = kMin ; j > 0; j--) {
+    //         distRowMajor[i * k + j-1] = kNearestWithPivot(dist, indexValues, left , right - 1, j , &idx, &pivot);
+    //         indexesRowMajor[i * k + j-1] = idx - i * m;
+    //     }
+    // }
 
     result->ndist = distRowMajor;
     result->nidx = indexesRowMajor;
