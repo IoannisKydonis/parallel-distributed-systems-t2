@@ -153,18 +153,37 @@ struct knnresult updateKNN(struct knnresult oldResult, struct knnresult newResul
         int it1, it2; //iterator for old and new result.ndist
         it1 = it2 = i * k;
         for (int j = 0; j < k; j++) {
-            if (newResult.ndist[it1] <= oldResult.ndist[it2]) {
+            int flag = 0;
+            do {
+                flag = 0;
+                for (int jj = i * k; jj < i * k + j; jj++) {
+                    // Check if indexes at it1 and it2 have been included already
+                    if (newIndexes[jj] == newResult.nidx[it1]) {
+                        flag = 1;
+                        it1++;
+                    }
+                    if (newIndexes[jj] == oldResult.nidx[it2]) {
+                        flag = 1;
+                        it2++;
+                    }
+                }
+            } while (flag == 1);
+
+            if (newResult.ndist[it1] <= oldResult.ndist[it2] && it1 < (i + 1) * k) {
                 newNearest[i * k + j] = newResult.ndist[it1];
                 newIndexes[i * k + j] = newResult.nidx[it1];
                 if (newResult.nidx[it1] == oldResult.nidx[it2])
                     it2++;
                 it1++;
-            } else {
+            } else if (newResult.ndist[it1] > oldResult.ndist[it2] && it2 < (i + 1) * k) {
                 newNearest[i * k + j] = oldResult.ndist[it2];
                 newIndexes[i * k + j] = oldResult.nidx[it2];
                 if (newResult.nidx[it1] == oldResult.nidx[it2])
                     it1++;
                 it2++;
+            } else {
+                newNearest[i * k + j] = INFINITY;
+                newIndexes[i * k + j] = -1;
             }
         }
     }
