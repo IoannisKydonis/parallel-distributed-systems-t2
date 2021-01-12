@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
 
     //double * X=read_X(&n,&d,argv[1]);
 
-        double X[30] = {
+    double X[30] = {
             1.0, 2.0,
             0.5, 1.2,
             7.9, 4.6,
@@ -139,76 +139,84 @@ knnresult distrAllkNN(double *x, int n, int d, int k) {
 
 struct knnresult smallKNN(double *x, double *y, int n, int m, int d, int k, int indexOffset) {
     struct knnresult *result = malloc(sizeof(struct knnresult));
-
-    double *xx = malloc(n * d * sizeof(double));
-    hadamardProduct(x, x, xx, n * d);
-
-    double *yy = malloc(m * d * sizeof(double));
-    hadamardProduct(y, y, yy, m * d);
-
-    double *xxSum = malloc(n * sizeof(double));
-    for (int i = 0; i < n; i++) {
-        xxSum[i] = cblas_dasum(d, xx + i * d, 1);
-    }
-
-    double *yySum = malloc(m * sizeof(double));
-    for (int i = 0; i < m; i++) {
-        yySum[i] = cblas_dasum(d, yy + i * d, 1);
-    }
-
-    double *xy = malloc(n * m * sizeof(double));
-    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, n, m, d, -2, x, d, y, d, 0, xy, m);
-
-    double *dist = malloc(n * m * sizeof(double));
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < m; j++) {
-            double distanceSquared = xxSum[i] + xy[i * m + j] + yySum[j];
-            if (distanceSquared <= 0)
-                dist[i * m + j] = 0;
-            else
-                dist[i * m + j] = sqrt(distanceSquared);
-        }
-    }
-
-    int *indexValues = (int *) malloc(n * m * sizeof(int));
-    for (int i = 0; i < n * m; i++)
-        indexValues[i] = i + indexOffset;
-
-    int kMin = k > n ? n : k;
-    kMin = kMin > m ? m : kMin;
-
     int *indexesRowMajor = (int *) malloc(n * k * sizeof(int));
     double *distRowMajor = (double *) malloc(n * k * sizeof(double));
+
     for (int i = 0; i < n * k; i++) {
         distRowMajor[i] = INFINITY;
         indexesRowMajor[i] = -1;
     }
 
+    double *xx = malloc(n * d * sizeof(double));
+    hadamardProduct(x, x, xx, n * d);
 
+    double *xxSum = malloc(n * sizeof(double));
     for (int i = 0; i < n; i++) {
-        int left=i*m;
-        int right=(i+1)*m;
-        int idx;
-        int pivot;
-        for (int j = kMin ; j > 0; j--) {
-            
-            distRowMajor[i * k + j-1] = kNearestWithPivot(dist, indexValues, left , right - 1, j , &idx, &pivot);
-            indexesRowMajor[i * k + j-1] = idx - i * m;
-            //printf("left is %d, right is %d, pivot is %d, idx is %d\n",left, right,pivot,idx);
-            right=pivot;
-        }
-    }
+        xxSum[i] = cblas_dasum(d, xx + i * d, 1);
+    }   
 
-    // for (int i = 0; i < n; i++) {
-    //     int left=i*m;
-    //     int right=(i+1)*m;
-    //     int idx;
-    //     int pivot;
-    //     for (int j = kMin ; j > 0; j--) {
-    //         distRowMajor[i * k + j-1] = kNearestWithPivot(dist, indexValues, left , right - 1, j , &idx, &pivot);
-    //         indexesRowMajor[i * k + j-1] = idx - i * m;
-    //     }
-    // }
+    int kMin = k > n ? n : k;
+    kMin = kMin > m ? m : kMin;
+    
+    
+    int MAX_Y_SIZE = 3;
+    for (int ii = 0; ii < ceil(m / (double) MAX_Y_SIZE); ii++) {
+        int partitionSize = MAX_Y_SIZE;
+        if (ii * MAX_Y_SIZE + partitionSize > m) {
+            partitionSize = m % MAX_Y_SIZE;
+        }
+
+        double *currentY = malloc(partitionSize * d * sizeof(double));
+        for (int i = 0; i < partitionSize * d; i++) {
+            currentY[i] = y[ii * MAX_Y_SIZE * d + i];
+        }
+
+        double *yy = malloc(partitionSize * d * sizeof(double));
+        hadamardProduct(currentY, currentY, yy, partitionSize * d);
+
+        double *yySum = malloc(partitionSize * sizeof(double));
+        for (int i = 0; i < partitionSize; i++) {
+            yySum[i] = cblas_dasum(d, yy + i * d, 1);
+        }
+
+        double *xy = malloc(n * partitionSize * sizeof(double));
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, n, partitionSize, d, -2, x, d, currentY, d, 0, xy, partitionSize);
+
+        double *dist = malloc(n * partitionSize * sizeof(double));
+        for (int j = 0; j < partitionSize; j++) {
+            for (int i = 0; i < n; i++) {
+                double distanceSquared = xxSum[i] + xy[i * partitionSize + j] + yySum[j];
+                if (distanceSquared <= 0)
+                    dist[j * n + i] = 0;
+                else
+                    dist[j * n + i] = sqrt(distanceSquared);
+            }
+        }
+
+        int *indexValues = (int *) malloc(n * partitionSize * sizeof(int));
+        for (int i = 0; i < n * partitionSize; i++)
+            indexValues[i] = ii * MAX_Y_SIZE * k + i +indexOffset;
+
+        for (int i = 0; i < partitionSize; i++) {
+            int left=i*n;
+            int right=(i+1)*n;
+            int idx;
+            int pivot;
+            for (int j = kMin ; j > 0; j--) {
+                distRowMajor[ii * MAX_Y_SIZE * k + i * k + j-1] = kNearestWithPivot(dist, indexValues, left, right - 1, j , &idx, &pivot);
+                indexesRowMajor[ii * MAX_Y_SIZE * k + i * k + j-1] = idx - i * n;
+                //printf("left is %d, right is %d, pivot is %d, idx is %d\n",left, right,pivot,idx);
+                right=pivot;
+            }
+        }
+
+        free(currentY);
+        free(yy);
+        free(xy);
+        free(yySum);
+        free(dist);
+        free(indexValues);
+    }
 
     result->ndist = distRowMajor;
     result->nidx = indexesRowMajor;
@@ -216,9 +224,6 @@ struct knnresult smallKNN(double *x, double *y, int n, int m, int d, int k, int 
     result->k = k;
 
     free(xx);
-    free(yy);
-    free(xy);
     free(xxSum);
-    free(yySum);
     return *result;
 }
