@@ -25,6 +25,20 @@ double kNearest(double *dist, int *indexValues, int left, int right, int k, int 
     }
 }
 
+double kNearestWithPivot(double *dist, int *indexValues, int left, int right, int k, int *idx, int * pvt) {
+    int pivot = partition(dist, indexValues, left, right);
+
+    if (k < pivot - left + 1) {
+        return kNearestWithPivot(dist, indexValues, left, pivot - 1, k, idx, pvt);
+    } else if (k > pivot - left + 1) {
+        return kNearestWithPivot(dist, indexValues, pivot + 1, right, k - pivot + left - 1, idx, pvt);
+    } else {
+        *idx = indexValues[pivot];
+        *pvt= pivot;
+        return dist[pivot];
+    }
+}
+
 int partition(double *dist, int *indexValues, int left, int right) {
     double x = dist[right];
     int i = left;
