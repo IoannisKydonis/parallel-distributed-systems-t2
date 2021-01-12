@@ -7,6 +7,8 @@ void hadamardProduct(double *x, double *y, double *res, int length);
 
 double kNearest(double *dist, int *indexValues, int l, int r, int k, int *idx);
 
+double kNearestWithPivot(double *dist, int *indexValues, int l, int r, int k, int *idx, int * pvt);
+
 int partition(double *dist, int *indexValues, int l, int r);
 
 double kNearestWithOffsets(double *dist, int *indexValues, int *offsets, int left, int right, int k, int *idx);
